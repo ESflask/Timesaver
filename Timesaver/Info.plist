@@ -2,12 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>shortcuts</string>
+	</array>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>アラームの通知を送信するために必要です。</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
 		<string>fetch</string>
 	</array>
-	<key>NSUserNotificationsUsageDescription</key>
-	<string>アラームの通知を送信するために必要です。</string>
 </dict>
 </plist>

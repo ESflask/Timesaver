@@ -24,12 +24,14 @@ struct WakeUpSuccessView: View {
                     .font(.title3)
                     .foregroundColor(.secondary)
 
-                if let session = scheduler.session {
-                    Text("アラーム \(scheduler.alarmsFired)回目で起床成功")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 4)
-                }
+                Text("アラーム \(scheduler.alarmsFired)回目で起床成功")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
+
+                Text("純正時計アプリの残りアラームを削除しました")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             Spacer()
@@ -52,8 +54,7 @@ struct WakeUpSuccessView: View {
         }
         .onAppear {
             showConfetti = true
-            // 画面の明るさを元に戻す
-            ScreenBrightnessManager().restoreBrightness()
+            scheduler.brightnessManager.restoreBrightness()
         }
     }
 }

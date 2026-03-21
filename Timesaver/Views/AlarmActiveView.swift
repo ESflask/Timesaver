@@ -2,10 +2,10 @@ import SwiftUI
 import AVFoundation
 
 /// アラーム発動中画面: 画面全体が赤く点滅し、「起きたボタン」を表示
+/// 純正時計アプリのアラームが鳴っている状態で、ユーザーにミッションへ誘導する
 struct AlarmActiveView: View {
     @EnvironmentObject var scheduler: AlarmScheduler
     @State private var isFlashing = false
-    @State private var audioPlayer: AVAudioPlayer?
 
     var body: some View {
         ZStack {
@@ -34,13 +34,16 @@ struct AlarmActiveView: View {
                     Text("アラーム \(scheduler.alarmsFired) / 30")
                         .font(.title3)
                         .foregroundColor(.white.opacity(0.8))
+
+                    Text("純正時計アプリでアラームが鳴っています")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
                 }
 
                 Spacer()
 
                 // 「起きた」ボタン → ミッションへ
                 Button {
-                    stopSound()
                     scheduler.startMission()
                 } label: {
                     Text("起きた！ミッションに挑戦")
@@ -54,32 +57,17 @@ struct AlarmActiveView: View {
                 }
                 .padding(.horizontal, 24)
 
-                Text("ミッションをクリアしないとアラームは止まりません")
+                Text("ミッションをクリアしないと\n残りのアラームは止まりません")
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
                     .padding(.bottom, 40)
             }
         }
         .onAppear {
             isFlashing = true
-            playAlarmSound()
-            // 画面の明るさを最大にする
-            UIScreen.main.brightness = 1.0
+            scheduler.brightnessManager.maximizeBrightness()
         }
-    }
-
-    // MARK: - アラーム音再生
-
-    private func playAlarmSound() {
-        // システムサウンドでアラーム音を再生
-        AudioServicesPlayAlertSound(SystemSoundID(1005))
-
-        // ショートカット経由でも鳴らす
-        ShortcutManager.triggerAlarmShortcut()
-    }
-
-    private func stopSound() {
-        audioPlayer?.stop()
     }
 }
 

@@ -24,8 +24,13 @@ struct ContentView: View {
 
 struct DeadlineSetupView: View {
     @EnvironmentObject var scheduler: AlarmScheduler
-    @State private var deadlineTime = Date()
+    @State private var deadlineTime: Date = {
+        let cal = Calendar.current
+        return cal.date(bySettingHour: 5, minute: 0, second: 0, of: Date()) ?? Date()
+    }()
+    @State private var alarmCount = 30
     @State private var showingSetup = false
+    @State private var showingAlarmCountPicker = false
 
     var body: some View {
         NavigationStack {
@@ -38,7 +43,7 @@ struct DeadlineSetupView: View {
                         .font(.system(size: 36, weight: .black, design: .rounded))
                         .foregroundColor(.primary)
 
-                    Text("二度寝、完封。")
+                    Text("二度寝でも3度寝でも、諦めない")
                         .font(.title3)
                         .foregroundColor(.secondary)
                 }
@@ -64,28 +69,47 @@ struct DeadlineSetupView: View {
                 .cornerRadius(16)
                 .padding(.horizontal)
 
-                // 30分前からの説明
+                // アラーム開始時刻 + 回数設定
                 VStack(spacing: 4) {
-                    let startTime = deadlineTime.addingTimeInterval(-30 * 60)
+                    let startTime = deadlineTime.addingTimeInterval(-Double(alarmCount) * 60)
                     let formatter = DateFormatter()
                     let _ = formatter.dateFormat = "HH:mm"
 
-                    Text("\(formatter.string(from: startTime)) からアラーム開始")
+                    Text("純正時計アプリに \(formatter.string(from: startTime)) ~ アラーム作成")
                         .font(.subheadline)
                         .fontWeight(.medium)
 
-                    Text("1分おき × 30回の波状攻撃")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 4) {
+                        Text("1分おき ×")
+                        Button {
+                            showingAlarmCountPicker = true
+                        } label: {
+                            HStack(spacing: 2) {
+                                Text("\(alarmCount)回")
+                                    .fontWeight(.bold)
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.system(size: 10))
+                            }
+                            .foregroundColor(.accentColor)
+                        }
+                        .confirmationDialog("アラーム回数を選択", isPresented: $showingAlarmCountPicker) {
+                            ForEach([5, 10, 15, 20, 25, 30], id: \.self) { count in
+                                Button("\(count)回") { alarmCount = count }
+                            }
+                            Button("キャンセル", role: .cancel) {}
+                        }
+                        Text("（ショートカット経由）")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 }
 
                 Spacer()
 
                 // セットボタン
                 Button {
-                    // 今日or明日の該当時刻を計算
                     let targetDate = calculateTargetDate(from: deadlineTime)
-                    scheduler.setDeadline(targetDate)
+                    scheduler.setDeadline(targetDate, alarmCount: alarmCount)
                 } label: {
                     Text("アラームをセット")
                         .font(.title3)
@@ -124,8 +148,8 @@ struct DeadlineSetupView: View {
                                     second: 0,
                                     of: now)!
 
-        // アラーム開始（30分前）が現在時刻より前なら翌日に設定
-        let alarmStart = target.addingTimeInterval(-30 * 60)
+        // アラーム開始（N分前）が現在時刻より前なら翌日に設定
+        let alarmStart = target.addingTimeInterval(-Double(alarmCount) * 60)
         if alarmStart <= now {
             target = calendar.date(byAdding: .day, value: 1, to: target)!
         }
@@ -190,10 +214,16 @@ struct ArmedView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
 
-                    Text("30回の波状攻撃が待機中...")
+                    Text("純正時計アプリに\(session.totalAlarms)回分のアラームを登録済み")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+            }
+
+            // ショートカット登録中の表示
+            if scheduler.isScheduling {
+                ProgressView("ショートカット経由でアラーム登録中...")
+                    .padding()
             }
 
             Spacer()
@@ -206,7 +236,7 @@ struct ArmedView: View {
             Button {
                 scheduler.reset()
             } label: {
-                Text("キャンセル")
+                Text("キャンセル（全アラーム削除）")
                     .foregroundColor(.red)
                     .padding()
             }
