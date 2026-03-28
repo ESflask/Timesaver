@@ -1,28 +1,11 @@
 import SwiftUI
 
-/// 覚醒ミッション画面: シェイクミッションを直接表示
+/// 覚醒ミッション画面: Gemini AI チャットで起床認証（1階の洗面台を撮影）
 struct MissionView: View {
     @EnvironmentObject var scheduler: AlarmScheduler
 
     var body: some View {
-        VStack(spacing: 30) {
-            Spacer()
-
-            Text("覚醒ミッション")
-                .font(.system(size: 32, weight: .black))
-
-            Text("脳が起きていることを証明せよ")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            Spacer()
-
-            ShakeMissionView {
-                scheduler.missionCompleted()
-            }
-
-            Spacer()
-        }
+        VerificationChatView(mode: .morning)
     }
 }
 

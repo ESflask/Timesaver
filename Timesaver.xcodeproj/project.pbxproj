@@ -17,6 +17,11 @@
 		AA000014 /* SleepRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000014 /* SleepRecord.swift */; };
 		AA000015 /* SleepHistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000015 /* SleepHistoryManager.swift */; };
 		AA000016 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000016 /* HistoryView.swift */; };
+		AA000017 /* APIKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000017 /* APIKeyManager.swift */; };
+		AA000018 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000018 /* SettingsView.swift */; };
+		AA000019 /* GeminiService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000019 /* GeminiService.swift */; };
+		AA000024 /* VerificationChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000024 /* VerificationChatView.swift */; };
+		AA000022 /* Secrets.plist in Resources */ = {isa = PBXBuildFile; fileRef = AB000023 /* Secrets.plist */; };
 		AA000008 /* AlarmActiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000008 /* AlarmActiveView.swift */; };
 		AA000009 /* MissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000009 /* MissionView.swift */; };
 		AA000011 /* ShakeMissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000011 /* ShakeMissionView.swift */; };
@@ -36,6 +41,11 @@
 		AB000014 /* SleepRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepRecord.swift; sourceTree = "<group>"; };
 		AB000015 /* SleepHistoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepHistoryManager.swift; sourceTree = "<group>"; };
 		AB000016 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		AB000017 /* APIKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKeyManager.swift; sourceTree = "<group>"; };
+		AB000018 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		AB000019 /* GeminiService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiService.swift; sourceTree = "<group>"; };
+		AB000024 /* VerificationChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationChatView.swift; sourceTree = "<group>"; };
+		AB000023 /* Secrets.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Secrets.plist; sourceTree = "<group>"; };
 		AB000008 /* AlarmActiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmActiveView.swift; sourceTree = "<group>"; };
 		AB000009 /* MissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissionView.swift; sourceTree = "<group>"; };
 		AB000011 /* ShakeMissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShakeMissionView.swift; sourceTree = "<group>"; };
@@ -74,6 +84,7 @@
 				AD000006 /* Services */,
 				AB000020 /* Assets.xcassets */,
 				AB000022 /* Info.plist */,
+				AB000023 /* Secrets.plist */,
 				AD000007 /* Preview Content */,
 			);
 			path = Timesaver;
@@ -98,6 +109,8 @@
 				AB000011 /* ShakeMissionView.swift */,
 				AB000012 /* WakeUpSuccessView.swift */,
 				AB000016 /* HistoryView.swift */,
+				AB000024 /* VerificationChatView.swift */,
+				AB000018 /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -107,6 +120,8 @@
 			children = (
 				AB000005 /* AlarmScheduler.swift */,
 				AB000013 /* AlarmSoundManager.swift */,
+				AB000017 /* APIKeyManager.swift */,
+				AB000019 /* GeminiService.swift */,
 				AB000015 /* SleepHistoryManager.swift */,
 				AB000007 /* ScreenBrightnessManager.swift */,
 			);
@@ -189,6 +204,7 @@
 			files = (
 				AA000020 /* Assets.xcassets in Resources */,
 				AA000021 /* Preview Assets.xcassets in Resources */,
+				AA000022 /* Secrets.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -213,6 +229,10 @@
 				AA000014 /* SleepRecord.swift in Sources */,
 				AA000015 /* SleepHistoryManager.swift in Sources */,
 				AA000016 /* HistoryView.swift in Sources */,
+				AA000017 /* APIKeyManager.swift in Sources */,
+				AA000018 /* SettingsView.swift in Sources */,
+				AA000019 /* GeminiService.swift in Sources */,
+				AA000024 /* VerificationChatView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -3,8 +3,6 @@ import SwiftUI
 /// 睡眠・起床記録の履歴画面
 struct HistoryView: View {
     @EnvironmentObject var historyManager: SleepHistoryManager
-    @Environment(\.dismiss) private var dismiss
-
     private let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "ja_JP")
@@ -47,11 +45,6 @@ struct HistoryView: View {
             }
             .navigationTitle("履歴")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("閉じる") { dismiss() }
-                }
-            }
         }
     }
 }

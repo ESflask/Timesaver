@@ -40,6 +40,13 @@ struct MainTabView: View {
                     Text("Morning")
                 }
                 .tag(1)
+
+            HistoryView()
+                .tabItem {
+                    Image(systemName: "clock.arrow.circlepath")
+                    Text("History")
+                }
+                .tag(2)
         }
     }
 }
@@ -52,8 +59,6 @@ struct NightAlarmView: View {
         let cal = Calendar.current
         return cal.date(bySettingHour: 23, minute: 0, second: 0, of: Date()) ?? Date()
     }()
-    @State private var showingHistory = false
-
     var body: some View {
         NavigationStack {
             VStack(spacing: 30) {
@@ -94,33 +99,15 @@ struct NightAlarmView: View {
                 Spacer()
 
                 // セットボタン
-                Button {
+                Button("就寝アラームをセット") {
                     let targetDate = calculateBedtime(from: bedtime)
                     scheduler.setBedtimeAlarm(targetDate)
-                } label: {
-                    Text("就寝アラームをセット")
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.indigo)
-                        .cornerRadius(16)
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .tint(.indigo)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingHistory = true
-                    } label: {
-                        Image(systemName: "clock.arrow.circlepath")
-                    }
-                }
-            }
-            .sheet(isPresented: $showingHistory) {
-                HistoryView()
             }
         }
     }
@@ -154,7 +141,6 @@ struct MorningAlarmView: View {
     }()
     @State private var alarmCount = 30
     @State private var showingAlarmCountPicker = false
-    @State private var showingHistory = false
 
     var body: some View {
         NavigationStack {
@@ -230,33 +216,15 @@ struct MorningAlarmView: View {
                 Spacer()
 
                 // セットボタン
-                Button {
+                Button("起床アラームをセット") {
                     let targetDate = calculateTargetDate(from: deadlineTime)
                     scheduler.setDeadline(targetDate, alarmCount: alarmCount)
-                } label: {
-                    Text("起床アラームをセット")
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.red)
-                        .cornerRadius(16)
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .tint(.red)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingHistory = true
-                    } label: {
-                        Image(systemName: "clock.arrow.circlepath")
-                    }
-                }
-            }
-            .sheet(isPresented: $showingHistory) {
-                HistoryView()
             }
         }
     }
