@@ -1,10 +1,8 @@
 import Foundation
 import UserNotifications
-import UIKit
 
-/// アラームバッチのループスケジュール管理
-/// 純正時計アプリのアラームをショートカット経由で作成し、
-/// 起きましたボタンが押されるまでN+1分ごとに次のバッチを自動追加する
+/// アラームスケジュール管理
+/// アプリ内でアラームを管理し、起きましたボタンが押されるまで繰り返す
 class AlarmScheduler: ObservableObject {
     @Published var session: WakeSession?
     @Published var currentState: AppState = .idle
@@ -12,6 +10,8 @@ class AlarmScheduler: ObservableObject {
     @Published var isScheduling: Bool = false
 
     let brightnessManager = ScreenBrightnessManager()
+    let soundManager = AlarmSoundManager()
+    var historyManager: SleepHistoryManager?
     private let notificationCenter = UNUserNotificationCenter.current()
     private let sessionKey = "currentWakeSession"
     private var alarmTimer: Timer?
@@ -48,6 +48,9 @@ class AlarmScheduler: ObservableObject {
         self.session = session
         saveSession()
 
+        // 就寝記録を開始
+        historyManager?.recordBedtime(Date())
+
         // 第1バッチ作成
         scheduleAlarmBatch(startTime: session.alarmStartTime, count: session.totalAlarms, batchIndex: 0)
 
@@ -59,17 +62,16 @@ class AlarmScheduler: ObservableObject {
         }
     }
 
-    /// 指定開始時刻からN回分のアラームをショートカット経由で一括作成
+    /// 指定開始時刻からN回分のアラームをスケジュール
     private func scheduleAlarmBatch(startTime: Date, count: Int, batchIndex: Int) {
         isScheduling = true
-        ShortcutManager.createAlarms(startTime: startTime, count: count)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        // ローカル通知でアラームをスケジュール
+        addBackupNotifications(startTime: startTime, count: count, batchIndex: batchIndex)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.isScheduling = false
         }
-
-        // バックアップ通知（バッチごとに追加、既存は保持）
-        addBackupNotifications(startTime: startTime, count: count, batchIndex: batchIndex)
     }
 
     /// バックアップ用ローカル通知を追加（バッチごとにIDを分けて既存通知を上書きしない）
@@ -133,26 +135,47 @@ class AlarmScheduler: ObservableObject {
         }
     }
 
+    // MARK: - 就寝アラーム
+
+    /// 就寝時刻にアラームを1回セット
+    func setBedtimeAlarm(_ bedtime: Date) {
+        let content = UNMutableNotificationContent()
+        content.title = "おやすみの時間です"
+        content.body = "ベッドに入りましょう"
+        content.sound = UNNotificationSound.default
+        content.interruptionLevel = .timeSensitive
+
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: bedtime)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(identifier: "bedtime-alarm", content: content, trigger: trigger)
+        notificationCenter.add(request)
+    }
+
     // MARK: - ユーザーアクション
 
-    /// 「起きたボタン」→ ミッション開始
+    /// 「Woke up」→ 音を止めて振動に切り替え → ミッション開始
     func startMission() {
+        soundManager.stopAlarm()
+        soundManager.startVibration()
+        historyManager?.recordWakeUp()
         currentState = .missionActive
     }
 
-    /// ミッション完了 → 全アラーム解除 → 成功画面
+    /// ミッション完了 → 振動停止・全アラーム解除 → 成功画面
     func missionCompleted() {
+        soundManager.stopVibration()
+        historyManager?.recordMissionCompleted()
         currentState = .success
         cancelAllAlarms()
         session?.isActive = false
         saveSession()
     }
 
-    /// 全アラームをキャンセル（純正時計 + ローカル通知）
+    /// 全アラームをキャンセル
     func cancelAllAlarms() {
         alarmTimer?.invalidate()
         alarmTimer = nil
-        ShortcutManager.deleteAllAlarms()
         notificationCenter.removeAllPendingNotificationRequests()
     }
 

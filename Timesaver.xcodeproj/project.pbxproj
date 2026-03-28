@@ -12,8 +12,11 @@
 		AA000003 /* WakeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000003 /* WakeSession.swift */; };
 		AA000004 /* Mission.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000004 /* Mission.swift */; };
 		AA000005 /* AlarmScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000005 /* AlarmScheduler.swift */; };
-		AA000006 /* ShortcutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000006 /* ShortcutManager.swift */; };
 		AA000007 /* ScreenBrightnessManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000007 /* ScreenBrightnessManager.swift */; };
+		AA000013 /* AlarmSoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000013 /* AlarmSoundManager.swift */; };
+		AA000014 /* SleepRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000014 /* SleepRecord.swift */; };
+		AA000015 /* SleepHistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000015 /* SleepHistoryManager.swift */; };
+		AA000016 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000016 /* HistoryView.swift */; };
 		AA000008 /* AlarmActiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000008 /* AlarmActiveView.swift */; };
 		AA000009 /* MissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000009 /* MissionView.swift */; };
 		AA000011 /* ShakeMissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000011 /* ShakeMissionView.swift */; };
@@ -28,8 +31,11 @@
 		AB000003 /* WakeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakeSession.swift; sourceTree = "<group>"; };
 		AB000004 /* Mission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mission.swift; sourceTree = "<group>"; };
 		AB000005 /* AlarmScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmScheduler.swift; sourceTree = "<group>"; };
-		AB000006 /* ShortcutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutManager.swift; sourceTree = "<group>"; };
 		AB000007 /* ScreenBrightnessManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenBrightnessManager.swift; sourceTree = "<group>"; };
+		AB000013 /* AlarmSoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmSoundManager.swift; sourceTree = "<group>"; };
+		AB000014 /* SleepRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepRecord.swift; sourceTree = "<group>"; };
+		AB000015 /* SleepHistoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepHistoryManager.swift; sourceTree = "<group>"; };
+		AB000016 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		AB000008 /* AlarmActiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmActiveView.swift; sourceTree = "<group>"; };
 		AB000009 /* MissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissionView.swift; sourceTree = "<group>"; };
 		AB000011 /* ShakeMissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShakeMissionView.swift; sourceTree = "<group>"; };
@@ -78,6 +84,7 @@
 			children = (
 				AB000003 /* WakeSession.swift */,
 				AB000004 /* Mission.swift */,
+				AB000014 /* SleepRecord.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -90,6 +97,7 @@
 				AB000009 /* MissionView.swift */,
 				AB000011 /* ShakeMissionView.swift */,
 				AB000012 /* WakeUpSuccessView.swift */,
+				AB000016 /* HistoryView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -98,7 +106,8 @@
 			isa = PBXGroup;
 			children = (
 				AB000005 /* AlarmScheduler.swift */,
-				AB000006 /* ShortcutManager.swift */,
+				AB000013 /* AlarmSoundManager.swift */,
+				AB000015 /* SleepHistoryManager.swift */,
 				AB000007 /* ScreenBrightnessManager.swift */,
 			);
 			path = Services;
@@ -195,12 +204,15 @@
 				AA000003 /* WakeSession.swift in Sources */,
 				AA000004 /* Mission.swift in Sources */,
 				AA000005 /* AlarmScheduler.swift in Sources */,
-				AA000006 /* ShortcutManager.swift in Sources */,
 				AA000007 /* ScreenBrightnessManager.swift in Sources */,
+				AA000013 /* AlarmSoundManager.swift in Sources */,
 				AA000008 /* AlarmActiveView.swift in Sources */,
 				AA000009 /* MissionView.swift in Sources */,
 				AA000011 /* ShakeMissionView.swift in Sources */,
 				AA000012 /* WakeUpSuccessView.swift in Sources */,
+				AA000014 /* SleepRecord.swift in Sources */,
+				AA000015 /* SleepHistoryManager.swift in Sources */,
+				AA000016 /* HistoryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

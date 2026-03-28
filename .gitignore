@@ -22,3 +22,6 @@ Packages/
 
 # Claude local settings
 .claude/settings.local.json
+
+# 睡眠記録データ（プライバシー保護のためgit管理外）
+sleep_history.json

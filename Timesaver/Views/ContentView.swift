@@ -7,7 +7,7 @@ struct ContentView: View {
     var body: some View {
         switch scheduler.currentState {
         case .idle:
-            DeadlineSetupView()
+            MainTabView()
         case .armed:
             ArmedView()
         case .ringing:
@@ -20,17 +20,39 @@ struct ContentView: View {
     }
 }
 
-// MARK: - デッドライン設定画面
+// MARK: - タブ切り替え画面
 
-struct DeadlineSetupView: View {
+struct MainTabView: View {
+    @State private var selectedTab = 0
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            NightAlarmView()
+                .tabItem {
+                    Image(systemName: "moon.fill")
+                    Text("Night")
+                }
+                .tag(0)
+
+            MorningAlarmView()
+                .tabItem {
+                    Image(systemName: "sun.max.fill")
+                    Text("Morning")
+                }
+                .tag(1)
+        }
+    }
+}
+
+// MARK: - 就寝アラーム設定画面（Night）
+
+struct NightAlarmView: View {
     @EnvironmentObject var scheduler: AlarmScheduler
-    @State private var deadlineTime: Date = {
+    @State private var bedtime: Date = {
         let cal = Calendar.current
-        return cal.date(bySettingHour: 5, minute: 0, second: 0, of: Date()) ?? Date()
+        return cal.date(bySettingHour: 23, minute: 0, second: 0, of: Date()) ?? Date()
     }()
-    @State private var alarmCount = 30
-    @State private var showingSetup = false
-    @State private var showingAlarmCountPicker = false
+    @State private var showingHistory = false
 
     var body: some View {
         NavigationStack {
@@ -39,8 +61,110 @@ struct DeadlineSetupView: View {
 
                 // タイトル
                 VStack(spacing: 8) {
-                    Text("INFINITE WAKE")
-                        .font(.system(size: 36, weight: .black, design: .rounded))
+                    Text("Night")
+                        .font(.system(size: 40, weight: .heavy, design: .rounded))
+                        .foregroundColor(.primary)
+
+                    Text("おやすみアラーム")
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                // 就寝時刻ピッカー
+                VStack(spacing: 12) {
+                    Text("就寝時刻")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    Text("この時刻にベッドに入る")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    DatePicker("", selection: $bedtime, displayedComponents: .hourAndMinute)
+                        .datePickerStyle(.wheel)
+                        .labelsHidden()
+                }
+                .padding()
+                .background(Color(.systemGroupedBackground))
+                .cornerRadius(16)
+                .padding(.horizontal)
+
+                Spacer()
+
+                // セットボタン
+                Button {
+                    let targetDate = calculateBedtime(from: bedtime)
+                    scheduler.setBedtimeAlarm(targetDate)
+                } label: {
+                    Text("就寝アラームをセット")
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.indigo)
+                        .cornerRadius(16)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingHistory = true
+                    } label: {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingHistory) {
+                HistoryView()
+            }
+        }
+    }
+
+    /// 選択された時刻を今日or明日の日付に変換
+    private func calculateBedtime(from time: Date) -> Date {
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.hour, .minute], from: time)
+
+        var target = calendar.date(bySettingHour: components.hour ?? 23,
+                                    minute: components.minute ?? 0,
+                                    second: 0,
+                                    of: now)!
+
+        if target <= now {
+            target = calendar.date(byAdding: .day, value: 1, to: target)!
+        }
+
+        return target
+    }
+}
+
+// MARK: - 起床アラーム設定画面（Morning）
+
+struct MorningAlarmView: View {
+    @EnvironmentObject var scheduler: AlarmScheduler
+    @State private var deadlineTime: Date = {
+        let cal = Calendar.current
+        return cal.date(bySettingHour: 7, minute: 0, second: 0, of: Date()) ?? Date()
+    }()
+    @State private var alarmCount = 30
+    @State private var showingAlarmCountPicker = false
+    @State private var showingHistory = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 30) {
+                Spacer()
+
+                // タイトル
+                VStack(spacing: 8) {
+                    Text("Morning")
+                        .font(.system(size: 40, weight: .heavy, design: .rounded))
                         .foregroundColor(.primary)
 
                     Text("二度寝でも3度寝でも、諦めない")
@@ -75,7 +199,7 @@ struct DeadlineSetupView: View {
                     let formatter = DateFormatter()
                     let _ = formatter.dateFormat = "HH:mm"
 
-                    Text("純正時計アプリに \(formatter.string(from: startTime)) ~ アラーム作成")
+                    Text("\(formatter.string(from: startTime)) からアラーム開始")
                         .font(.subheadline)
                         .fontWeight(.medium)
 
@@ -98,7 +222,6 @@ struct DeadlineSetupView: View {
                             }
                             Button("キャンセル", role: .cancel) {}
                         }
-                        Text("（ショートカット経由）")
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -111,7 +234,7 @@ struct DeadlineSetupView: View {
                     let targetDate = calculateTargetDate(from: deadlineTime)
                     scheduler.setDeadline(targetDate, alarmCount: alarmCount)
                 } label: {
-                    Text("アラームをセット")
+                    Text("起床アラームをセット")
                         .font(.title3)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
@@ -121,18 +244,19 @@ struct DeadlineSetupView: View {
                         .cornerRadius(16)
                 }
                 .padding(.horizontal, 24)
-
-                // セットアップ手順
-                Button {
-                    showingSetup = true
-                } label: {
-                    Label("初回セットアップ手順", systemImage: "gear")
-                        .font(.footnote)
-                }
                 .padding(.bottom, 24)
             }
-            .sheet(isPresented: $showingSetup) {
-                SetupInstructionsView()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingHistory = true
+                    } label: {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingHistory) {
+                HistoryView()
             }
         }
     }
@@ -155,29 +279,6 @@ struct DeadlineSetupView: View {
         }
 
         return target
-    }
-}
-
-// MARK: - セットアップ手順画面
-
-struct SetupInstructionsView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                Text(ShortcutManager.setupInstructions)
-                    .font(.body)
-                    .padding()
-            }
-            .navigationTitle("初回セットアップ")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("閉じる") { dismiss() }
-                }
-            }
-        }
     }
 }
 
@@ -214,15 +315,15 @@ struct ArmedView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
 
-                    Text("純正時計アプリに\(session.totalAlarms)回分のアラームを登録済み")
+                    Text("\(session.totalAlarms)回分のアラームをセット済み")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
 
-            // ショートカット登録中の表示
+            // アラーム登録中の表示
             if scheduler.isScheduling {
-                ProgressView("ショートカット経由でアラーム登録中...")
+                ProgressView("アラーム登録中...")
                     .padding()
             }
 
@@ -236,7 +337,7 @@ struct ArmedView: View {
             Button {
                 scheduler.reset()
             } label: {
-                Text("キャンセル（全アラーム削除）")
+                Text("キャンセル")
                     .foregroundColor(.red)
                     .padding()
             }

@@ -29,7 +29,7 @@ struct WakeUpSuccessView: View {
                     .foregroundColor(.secondary)
                     .padding(.top, 4)
 
-                Text("純正時計アプリの残りアラームを削除しました")
+                Text("全てのアラームを停止しました")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

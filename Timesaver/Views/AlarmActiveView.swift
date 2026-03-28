@@ -1,8 +1,7 @@
 import SwiftUI
 import AVFoundation
 
-/// アラーム発動中画面: 画面全体が赤く点滅し、「起きたボタン」を表示
-/// 純正時計アプリのアラームが鳴っている状態で、ユーザーにミッションへ誘導する
+/// アラーム発動中画面: 画面全体が赤く点滅し、音が鳴り、「Woke up」ボタンを表示
 struct AlarmActiveView: View {
     @EnvironmentObject var scheduler: AlarmScheduler
     @State private var isFlashing = false
@@ -35,38 +34,38 @@ struct AlarmActiveView: View {
                         .font(.title3)
                         .foregroundColor(.white.opacity(0.8))
 
-                    Text("純正時計アプリでアラームが鳴っています")
+                    Text("アラームが鳴っています")
                         .font(.caption)
                         .foregroundColor(.white.opacity(0.6))
                 }
 
                 Spacer()
 
-                // 「起きた」ボタン → ミッションへ
+                // "Woke up" ボタン — ガラス質感 → 音を止めて振動に切り替え
                 Button {
+                    scheduler.soundManager.stopAlarm()
                     scheduler.startMission()
                 } label: {
-                    Text("起きた！ミッションに挑戦")
+                    Text("Woke up")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(.red)
+                        .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 20)
-                        .background(Color.white)
+                        .background(.ultraThinMaterial)
                         .cornerRadius(20)
                 }
                 .padding(.horizontal, 24)
-
-                Text("ミッションをクリアしないと\n残りのアラームは止まりません")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
-                    .padding(.bottom, 40)
+                .padding(.bottom, 50)
             }
         }
         .onAppear {
             isFlashing = true
+            scheduler.soundManager.playAlarm()
             scheduler.brightnessManager.maximizeBrightness()
+        }
+        .onDisappear {
+            scheduler.soundManager.stopAlarm()
         }
     }
 }
