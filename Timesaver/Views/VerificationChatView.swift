@@ -216,7 +216,11 @@ struct VerificationChatView: View {
                 if let result = GeminiService.extractVerification(from: response), result.passed {
                     // 認証成功 → 少し待ってから完了処理
                     try? await Task.sleep(nanoseconds: 1_500_000_000)
-                    scheduler.missionCompleted()
+                    if mode == .night {
+                        scheduler.nightMissionCompleted()
+                    } else {
+                        scheduler.missionCompleted()
+                    }
                 }
             } catch {
                 let errorMessage = ChatMessage(

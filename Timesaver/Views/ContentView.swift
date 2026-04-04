@@ -8,14 +8,24 @@ struct ContentView: View {
         switch scheduler.currentState {
         case .idle:
             MainTabView()
+        // Morning
         case .armed:
             ArmedView()
         case .ringing:
-            AlarmActiveView()
+            AlarmActiveView(mode: .morning)
         case .missionActive:
-            MissionView()
+            VerificationChatView(mode: .morning)
         case .success:
             WakeUpSuccessView()
+        // Night
+        case .nightArmed:
+            NightArmedView()
+        case .nightRinging:
+            AlarmActiveView(mode: .night)
+        case .nightMission:
+            VerificationChatView(mode: .night)
+        case .nightSuccess:
+            NightSuccessView()
         }
     }
 }
@@ -309,6 +319,90 @@ struct ArmedView: View {
                     .foregroundColor(.red)
                     .padding()
             }
+            .padding(.bottom, 40)
+        }
+    }
+}
+
+// MARK: - 就寝アラームセット済み画面
+
+struct NightArmedView: View {
+    @EnvironmentObject var scheduler: AlarmScheduler
+
+    private var timeFormatter: DateFormatter {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
+    }
+
+    var body: some View {
+        VStack(spacing: 30) {
+            Spacer()
+
+            Image(systemName: "moon.zzz.fill")
+                .font(.system(size: 60))
+                .foregroundColor(.indigo)
+
+            Text("就寝アラームセット完了")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            Text("時間になったらお知らせします")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            Text("そろそろ寝る準備を\nしておきましょう")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+
+            Button {
+                scheduler.reset()
+            } label: {
+                Text("キャンセル")
+                    .foregroundColor(.red)
+                    .padding()
+            }
+            .padding(.bottom, 40)
+        }
+    }
+}
+
+// MARK: - 就寝認証成功画面
+
+struct NightSuccessView: View {
+    @EnvironmentObject var scheduler: AlarmScheduler
+
+    var body: some View {
+        VStack(spacing: 30) {
+            Spacer()
+
+            Image(systemName: "moon.stars.fill")
+                .font(.system(size: 80))
+                .foregroundColor(.indigo)
+
+            Text("おやすみなさい")
+                .font(.system(size: 36, weight: .black, design: .rounded))
+
+            Text("ぐっすり眠ってください")
+                .font(.title3)
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            Button {
+                scheduler.reset()
+            } label: {
+                Text("閉じる")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .tint(.indigo)
+            .padding(.horizontal, 24)
             .padding(.bottom, 40)
         }
     }

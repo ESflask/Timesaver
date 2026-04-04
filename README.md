@@ -1,6 +1,34 @@
 # Timesaver (Infinite Wake)
 
-An alarm app that defeats oversleeping by firing repeated alarms until you physically prove you're awake.
+二度寝を物理的かつ心理的に完封する目覚ましアプリ。就寝時・起床時にGemini AIが写真を判定し、ミッション完了まで振動が止まらない。
+
+## Features
+
+### Morning — 起床アラーム
+- デッドライン時刻のN分前から1分おきにアラーム波状攻撃（回数: 5〜30回選択可能）
+- "Woke up" タップ → 音停止 → 振動に切り替え
+- 洗面台の写真をGemini AIが判定 → 合格まで振動継続
+
+### Night — 就寝アラーム
+- 就寝時刻にアラーム発動（indigo背景で点滅）
+- "Went to bed" タップ → 音停止 → 振動に切り替え
+- 布団の中の写真をGemini AIが判定 → 合格まで振動継続
+
+### その他
+- **チャット形式認証UI**: ChatGPT風のインターフェースでAI判定
+- **睡眠履歴**: 就寝・起床・睡眠時間を記録・一覧表示
+- **画面輝度最大化**: アラーム発動時に画面を最大輝度に
+- **バックアップ通知**: アプリがバックグラウンドでもcriticalAlert通知
+
+## Usage
+1. アプリを開く
+2. **Night**: 就寝時刻を設定 → 時刻になったら布団の写真を撮る
+3. **Morning**: デッドライン時刻を設定 → アラームが鳴ったら洗面台の写真を撮る
+4. Gemini AIが判定OK → 振動停止 → 完了
+
+## Setup
+1. `Timesaver/Secrets.plist` を作成し、`GEMINI_API_KEY` にGemini APIキーを設定
+2. Xcodeで実機ビルド（iOS 17.0+）
 
 ## Architecture Change Log
 
@@ -24,62 +52,16 @@ The original design used iOS Shortcuts (`IW_CreateAlarm` / `IW_DeleteAlarms`) to
 #### Added: In-app alarm sound + vibration system (`AlarmSoundManager.swift`)
 New service that handles alarm audio playback via `AVAudioPlayer` and vibration loop via `UIImpactFeedbackGenerator`. Configures `AVAudioSession` for `.playback` category so alarms sound even in silent mode. Falls back to system sound (ID 1005) if no custom audio file is bundled.
 
-```swift
-// AlarmSoundManager.swift — core API
-func playAlarm()       // loop audio at 0.7 volume
-func stopAlarm()       // stop audio
-func startVibration()  // 1s interval heavy impact loop
-func stopVibration()   // stop vibration
-```
-
-#### Added: "Woke up" button on `AlarmActiveView` (`.ultraThinMaterial` glass style)
-Replaced the old "起きた！ミッションに挑戦" button (white bg, red text) with a "Woke up" button using SwiftUI's `.ultraThinMaterial` for a frosted glass look. On tap: alarm sound stops → vibration starts → mission screen.
-
-```swift
-// AlarmActiveView.swift
-Button {
-    soundManager.stopAlarm()
-    scheduler.startMission()
-} label: {
-    Text("Woke up")
-        .font(.title2)
-        .fontWeight(.bold)
-        .foregroundColor(.white)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(.ultraThinMaterial)
-        .cornerRadius(20)
-}
-```
+#### Added: Night alarm flow (full state machine)
+Added complete night/bedtime alarm flow with dedicated states (`nightArmed` → `nightRinging` → `nightMission` → `nightSuccess`), sharing `AlarmActiveView` and `VerificationChatView` with Morning mode via `VerificationMode` parameter. Night flow uses indigo accent color and "Went to bed" button text. Includes `NightArmedView` and `NightSuccessView` for state-specific screens.
 
 #### Added: Gemini API integration (`GeminiService.swift`)
 Communicates with Gemini 2.0 Flash to verify bedtime/wake-up via photo comparison. Supports two modes (`.night` / `.morning`), each with a reference-photo and single-photo prompt variant. Returns JSON: `{"result": true/false, "reason": "..."}`.
 
-```swift
-// GeminiService.swift — API call
-static func sendChat(
-    mode: VerificationMode,
-    message: String?,
-    image: UIImage?,
-    referenceImage: UIImage?
-) async throws -> String
-```
-
-API key is loaded from `Secrets.plist` (gitignored):
-```swift
-private static var apiKey: String {
-    guard let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
-          let dict = NSDictionary(contentsOfFile: path),
-          let key = dict["GEMINI_API_KEY"] as? String,
-          key != "YOUR_API_KEY_HERE" else {
-        fatalError("Secrets.plist に有効な GEMINI_API_KEY を設定してください")
-    }
-    return key
-}
-```
+API key is loaded from `Secrets.plist` (gitignored).
 
 #### Added: Chat-based verification UI (`VerificationChatView.swift`)
-ChatGPT-style interface for the wake-up/bedtime mission. User selects a photo via `PhotosPicker`, optionally adds text, sends to Gemini API. AI response is parsed — if `"result": true`, calls `scheduler.missionCompleted()` to stop vibration and transition to success screen.
+ChatGPT-style interface for the wake-up/bedtime mission. User selects a photo via `PhotosPicker`, optionally adds text, sends to Gemini API. AI response is parsed — if `"result": true`, calls the appropriate completion method (`missionCompleted()` or `nightMissionCompleted()`) to stop vibration and transition to success screen.
 
 #### Added: Tab-based main screen (`ContentView.swift` restructured)
 Replaced single `DeadlineSetupView` with `MainTabView` containing three tabs:
@@ -88,19 +70,12 @@ Replaced single `DeadlineSetupView` with `MainTabView` containing three tabs:
 - **History** — sleep/wake records
 
 #### Added: Sleep history (`SleepRecord.swift`, `SleepHistoryManager.swift`, `HistoryView.swift`)
-Records bedtime, wake-up time, sleep duration, and time-to-wake. Stored via `SleepHistoryManager` (UserDefaults). History data is gitignored (`sleep_history.json`).
+Records bedtime, wake-up time, sleep duration, and time-to-wake. Stored via `SleepHistoryManager` (UserDefaults).
 
 #### Added: API key management (`APIKeyManager.swift`, `SettingsView.swift`, `Secrets.plist`)
 - `APIKeyManager` — stores Gemini API key in iOS Keychain
-- `SettingsView` — SecureField UI for key input (later removed from main navigation, `Secrets.plist` is now the primary method)
+- `SettingsView` — SecureField UI for key input
 - `Secrets.plist` — plist file containing `GEMINI_API_KEY`, gitignored
-
-## Usage
-1. Download the app
-2. Set your deadline time (the time you absolutely cannot be late for)
-3. Sleep
-4. Alarms fire repeatedly — press "Woke up", then take a photo of your washstand to prove you're up
-5. Wake up on time
 
 ## Stack
 - Platform: iOS (iPhone)

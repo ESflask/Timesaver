@@ -1,15 +1,20 @@
 import SwiftUI
 import AVFoundation
 
-/// アラーム発動中画面: 画面全体が赤く点滅し、音が鳴り、「Woke up」ボタンを表示
+/// アラーム発動中画面: Night/Morning共通。モードに応じてテキスト・色を切り替え
 struct AlarmActiveView: View {
+    let mode: GeminiService.VerificationMode
     @EnvironmentObject var scheduler: AlarmScheduler
     @State private var isFlashing = false
 
+    private var accentColor: Color {
+        mode == .night ? .indigo : .red
+    }
+
     var body: some View {
         ZStack {
-            // 背景: 赤く点滅
-            Color.red
+            // 背景: 点滅
+            accentColor
                 .opacity(isFlashing ? 0.8 : 0.3)
                 .ignoresSafeArea()
                 .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: isFlashing)
@@ -18,35 +23,34 @@ struct AlarmActiveView: View {
                 Spacer()
 
                 // アラームアイコン
-                Image(systemName: "alarm.fill")
+                Image(systemName: mode == .night ? "moon.fill" : "alarm.fill")
                     .font(.system(size: 80))
                     .foregroundColor(.white)
                     .scaleEffect(isFlashing ? 1.2 : 1.0)
                     .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: isFlashing)
 
-                // アラーム情報
+                // メッセージ
                 VStack(spacing: 8) {
-                    Text("起きて！！！")
-                        .font(.system(size: 40, weight: .black))
+                    Text(mode == .night ? "おやすみの時間です" : "起きて！！！")
+                        .font(.system(size: 36, weight: .black))
                         .foregroundColor(.white)
 
-                    Text("アラーム \(scheduler.alarmsFired) / 30")
+                    Text(mode == .night ? "布団に入りましょう" : "アラームが鳴っています")
                         .font(.title3)
                         .foregroundColor(.white.opacity(0.8))
-
-                    Text("アラームが鳴っています")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.6))
                 }
 
                 Spacer()
 
-                // "Woke up" ボタン — ガラス質感 → 音を止めて振動に切り替え
+                // ボタン — Night: "Went to bed" / Morning: "Woke up"
                 Button {
-                    scheduler.soundManager.stopAlarm()
-                    scheduler.startMission()
+                    if mode == .night {
+                        scheduler.startNightMission()
+                    } else {
+                        scheduler.startMission()
+                    }
                 } label: {
-                    Text("Woke up")
+                    Text(mode == .night ? "Went to bed" : "Woke up")
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
@@ -71,6 +75,6 @@ struct AlarmActiveView: View {
 }
 
 #Preview {
-    AlarmActiveView()
+    AlarmActiveView(mode: .morning)
         .environmentObject(AlarmScheduler())
 }

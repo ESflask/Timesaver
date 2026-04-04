@@ -17,11 +17,15 @@ class AlarmScheduler: ObservableObject {
     private var alarmTimer: Timer?
 
     enum AppState {
-        case idle           // 待機中（デッドライン未設定）
-        case armed          // アラームセット済み（就寝中）
-        case ringing        // アラーム発動中（起きましたボタン表示）
-        case missionActive  // ミッション実行中
-        case success        // 起床成功
+        case idle              // 待機中
+        case armed             // 起床アラームセット済み（就寝中）
+        case ringing           // 起床アラーム発動中
+        case missionActive     // 起床ミッション実行中（洗面台認証）
+        case success           // 起床成功
+        case nightArmed        // 就寝アラームセット済み
+        case nightRinging      // 就寝アラーム発動中
+        case nightMission      // 就寝ミッション実行中（布団認証）
+        case nightSuccess      // 就寝認証成功
     }
 
     init() {
@@ -47,9 +51,6 @@ class AlarmScheduler: ObservableObject {
         session.isActive = true
         self.session = session
         saveSession()
-
-        // 就寝記録を開始
-        historyManager?.recordBedtime(Date())
 
         // 第1バッチ作成
         scheduleAlarmBatch(startTime: session.alarmStartTime, count: session.totalAlarms, batchIndex: 0)
@@ -104,7 +105,11 @@ class AlarmScheduler: ObservableObject {
             guard let self = self,
                   var session = self.session,
                   self.currentState != .success,
-                  self.currentState != .missionActive else { return }
+                  self.currentState != .missionActive,
+                  self.currentState != .nightArmed,
+                  self.currentState != .nightRinging,
+                  self.currentState != .nightMission,
+                  self.currentState != .nightSuccess else { return }
 
             let now = Date()
 
@@ -137,19 +142,55 @@ class AlarmScheduler: ObservableObject {
 
     // MARK: - 就寝アラーム
 
-    /// 就寝時刻にアラームを1回セット
+    private var bedtimeTimer: Timer?
+
+    /// 就寝時刻にアラームをセットし、時刻到来でnightRinging状態に遷移
     func setBedtimeAlarm(_ bedtime: Date) {
+        // バックアップ通知
         let content = UNMutableNotificationContent()
         content.title = "おやすみの時間です"
-        content.body = "ベッドに入りましょう"
-        content.sound = UNNotificationSound.default
-        content.interruptionLevel = .timeSensitive
+        content.body = "アプリを開いて布団認証をしてください"
+        content.sound = UNNotificationSound.defaultCritical
+        content.interruptionLevel = .critical
 
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: bedtime)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
         let request = UNNotificationRequest(identifier: "bedtime-alarm", content: content, trigger: trigger)
         notificationCenter.add(request)
+
+        // アプリ内タイマーで状態遷移
+        let interval = bedtime.timeIntervalSinceNow
+        if interval <= 0 {
+            // 既に時刻を過ぎている場合は即発動
+            currentState = .nightRinging
+        } else {
+            currentState = .nightArmed
+            bedtimeTimer?.invalidate()
+            bedtimeTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+                DispatchQueue.main.async {
+                    self?.currentState = .nightRinging
+                }
+            }
+        }
+    }
+
+    /// 「Went to bed」→ 音を止めて振動に切り替え → 就寝ミッション開始
+    func startNightMission() {
+        soundManager.stopAlarm()
+        soundManager.startVibration()
+        currentState = .nightMission
+    }
+
+    /// 就寝ミッション完了 → 振動停止 → 就寝成功
+    func nightMissionCompleted() {
+        soundManager.stopVibration()
+        historyManager?.recordBedtime(Date())
+        currentState = .nightSuccess
+        // 就寝アラーム関連のみキャンセル
+        bedtimeTimer?.invalidate()
+        bedtimeTimer = nil
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: ["bedtime-alarm"])
     }
 
     // MARK: - ユーザーアクション
