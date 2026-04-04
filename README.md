@@ -1,34 +1,34 @@
 # Timesaver (Infinite Wake)
 
-二度寝を物理的かつ心理的に完封する目覚ましアプリ。就寝時・起床時にGemini AIが写真を判定し、ミッション完了まで振動が止まらない。
+An alarm app that physically and psychologically defeats oversleeping. Gemini AI verifies your photos at bedtime and wake-up — vibration won't stop until you complete the mission.
 
 ## Features
 
-### Morning — 起床アラーム
-- デッドライン時刻のN分前から1分おきにアラーム波状攻撃（回数: 5〜30回選択可能）
-- "Woke up" タップ → 音停止 → 振動に切り替え
-- 洗面台の写真をGemini AIが判定 → 合格まで振動継続
+### Morning — Wake-up Alarm
+- Fires alarms every minute starting N minutes before your deadline (5–30 alarms, configurable)
+- Tap "Woke up" → sound stops → vibration starts
+- Take a photo of your washstand → Gemini AI verifies → vibration continues until you pass
 
-### Night — 就寝アラーム
-- 就寝時刻にアラーム発動（indigo背景で点滅）
-- "Went to bed" タップ → 音停止 → 振動に切り替え
-- 布団の中の写真をGemini AIが判定 → 合格まで振動継続
+### Night — Bedtime Alarm
+- Alarm fires at your set bedtime (indigo flashing screen)
+- Tap "Went to bed" → sound stops → vibration starts
+- Take a photo from inside your bed → Gemini AI verifies → vibration continues until you pass
 
-### その他
-- **チャット形式認証UI**: ChatGPT風のインターフェースでAI判定
-- **睡眠履歴**: 就寝・起床・睡眠時間を記録・一覧表示
-- **画面輝度最大化**: アラーム発動時に画面を最大輝度に
-- **バックアップ通知**: アプリがバックグラウンドでもcriticalAlert通知
+### Other
+- **Chat-based verification UI**: ChatGPT-style interface for AI photo verification
+- **Sleep history**: Records bedtime, wake-up time, and sleep duration
+- **Screen brightness control**: Maximizes brightness when alarm fires
+- **Backup notifications**: Critical alerts even when the app is in the background
 
 ## Usage
-1. アプリを開く
-2. **Night**: 就寝時刻を設定 → 時刻になったら布団の写真を撮る
-3. **Morning**: デッドライン時刻を設定 → アラームが鳴ったら洗面台の写真を撮る
-4. Gemini AIが判定OK → 振動停止 → 完了
+1. Open the app
+2. **Night**: Set your bedtime → take a photo from your bed when the alarm fires
+3. **Morning**: Set your deadline → take a photo of your washstand when the alarm fires
+4. Gemini AI approves → vibration stops → done
 
 ## Setup
-1. `Timesaver/Secrets.plist` を作成し、`GEMINI_API_KEY` にGemini APIキーを設定
-2. Xcodeで実機ビルド（iOS 17.0+）
+1. Create `Timesaver/Secrets.plist` and set your Gemini API key as `GEMINI_API_KEY`
+2. Build on a real device with Xcode (iOS 17.0+)
 
 ## Architecture Change Log
 
@@ -47,7 +47,7 @@ The original design used iOS Shortcuts (`IW_CreateAlarm` / `IW_DeleteAlarms`) to
 **What was changed:**
 - `AlarmScheduler.scheduleAlarmBatch()` — removed `ShortcutManager.createAlarms()` call, now uses local notifications only
 - `AlarmScheduler.cancelAllAlarms()` — removed `ShortcutManager.deleteAllAlarms()` call
-- UI text updated: "純正時計アプリに..." → "...からアラーム開始", "(ショートカット経由)" removed, etc.
+- UI text updated accordingly
 
 #### Added: In-app alarm sound + vibration system (`AlarmSoundManager.swift`)
 New service that handles alarm audio playback via `AVAudioPlayer` and vibration loop via `UIImpactFeedbackGenerator`. Configures `AVAudioSession` for `.playback` category so alarms sound even in silent mode. Falls back to system sound (ID 1005) if no custom audio file is bundled.
