@@ -32,3 +32,4 @@ Timesaver/Secrets.plist
 # リファレンス写真（個人の自宅写真のためgit管理外）
 Timesaver/Assets.xcassets/reference_washstand.imageset/
 Timesaver/Assets.xcassets/reference_bedtime.imageset/
+Timesaver/GoogleService-Info.plist
