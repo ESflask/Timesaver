@@ -1,12 +1,99 @@
 import AVFoundation
+import MediaPlayer
 import UIKit
 
 /// アラーム音の再生・停止・振動切り替えを管理
 class AlarmSoundManager: ObservableObject {
     private var audioPlayer: AVAudioPlayer?
+    private var silencePlayer: AVAudioPlayer?
     private var vibrationTimer: Timer?
     @Published var isPlaying = false
     @Published var isVibrating = false
+    @Published var isSilencePlaying = false
+
+    // MARK: - 無音ループ再生（バックグラウンド維持用）
+
+    /// 無音ファイルをループ再生してアプリのサスペンドを防ぐ
+    func startSilenceLoop() {
+        guard !isSilencePlaying else { return }
+        configureAudioSession()
+
+        guard let url = Bundle.main.url(forResource: "silence", withExtension: "wav") else {
+            print("silence.wav が見つかりません")
+            return
+        }
+
+        do {
+            silencePlayer = try AVAudioPlayer(contentsOf: url)
+            silencePlayer?.numberOfLoops = -1  // 無限ループ
+            silencePlayer?.volume = 0.0        // 完全無音
+            silencePlayer?.play()
+            isSilencePlaying = true
+            disableRemoteControls()
+        } catch {
+            print("無音ループ再生に失敗: \(error.localizedDescription)")
+        }
+    }
+
+    /// ロック画面のメディアコントロールを無効化し、停止されても自動再開
+    private func disableRemoteControls() {
+        let commandCenter = MPRemoteCommandCenter.shared()
+
+        // 一時停止を受け取っても再生を再開する
+        commandCenter.pauseCommand.isEnabled = true
+        commandCenter.pauseCommand.addTarget { [weak self] _ in
+            self?.silencePlayer?.play()
+            return .success
+        }
+
+        // 停止コマンドも同様
+        commandCenter.stopCommand.isEnabled = true
+        commandCenter.stopCommand.addTarget { [weak self] _ in
+            self?.silencePlayer?.play()
+            return .success
+        }
+
+        // 再生ボタンも念のためハンドル
+        commandCenter.playCommand.isEnabled = true
+        commandCenter.playCommand.addTarget { [weak self] _ in
+            self?.silencePlayer?.play()
+            return .success
+        }
+
+        // 無音再生中はNow Playing情報を最小化
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+            MPMediaItemPropertyTitle: "Infinite Wake — 待機中"
+        ]
+    }
+
+    /// アラーム発動時にNow Playingを更新してタップを促す
+    func updateNowPlayingForAlarm() {
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: "ここをタップしてアプリを開く",
+            MPMediaItemPropertyArtist: "Infinite Wake"
+        ]
+
+        // アイコン画像（後で差し替え用のプレースホルダー）
+        if let image = UIImage(named: "nowplaying_icon") {
+            let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+            info[MPMediaItemPropertyArtwork] = artwork
+        }
+
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    }
+
+    /// 無音ループを停止（アラーム解除・リセット時）
+    func stopSilenceLoop() {
+        silencePlayer?.stop()
+        silencePlayer = nil
+        isSilencePlaying = false
+
+        // リモートコマンドのハンドラを解除
+        let commandCenter = MPRemoteCommandCenter.shared()
+        commandCenter.pauseCommand.removeTarget(nil)
+        commandCenter.stopCommand.removeTarget(nil)
+        commandCenter.playCommand.removeTarget(nil)
+    }
 
     // MARK: - 音声再生
 
@@ -14,6 +101,8 @@ class AlarmSoundManager: ObservableObject {
     func playAlarm() {
         // オーディオセッションを設定（サイレントモードでも鳴るように）
         configureAudioSession()
+        // ロック画面のNow Playingにタップを促す情報を表示
+        updateNowPlayingForAlarm()
 
         guard let url = Bundle.main.url(forResource: "alarm_sound", withExtension: "mp3") else {
             // バンドルに音声ファイルがない場合はシステムサウンドで代替
@@ -119,5 +208,6 @@ class AlarmSoundManager: ObservableObject {
         systemSoundTimer?.invalidate()
         vibrationTimer?.invalidate()
         audioPlayer?.stop()
+        silencePlayer?.stop()
     }
 }

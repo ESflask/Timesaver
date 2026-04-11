@@ -28,3 +28,7 @@ sleep_history.json
 
 # APIキー（絶対にgitに載せない）
 Timesaver/Secrets.plist
+
+# リファレンス写真（個人の自宅写真のためgit管理外）
+Timesaver/Assets.xcassets/reference_washstand.imageset/
+Timesaver/Assets.xcassets/reference_bedtime.imageset/

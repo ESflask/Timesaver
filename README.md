@@ -46,7 +46,7 @@ Set alarm → sleep (silence.wav keeps app alive)
 
 ## Setup
 1. Create `Timesaver/Secrets.plist` with your Gemini API key as `GEMINI_API_KEY` (bundled into the app at build time — no in-app key entry)
-2. Add your home washstand photo to Assets.xcassets as `reference_washstand` (this file is gitignored)
+2. Add your home washstand photo to `Assets.xcassets` as `reference_washstand` and your bedtime photo as `reference_bedtime` (these files are gitignored)
 3. Build on a real device with Xcode (iOS 17.0+)
 
 ## Architecture Change Log
@@ -84,6 +84,9 @@ Shows mode badge (night/morning), alarm fired time, action button time, and comp
 
 #### Added: Settings tab with auto/manual alarm mode (`SettingsView.swift`)
 Four tabs (Night / Morning / History / Settings). Settings tab lets users toggle between manual mode (set alarm each time) and auto mode (fixed bedtime + wake time). When auto mode is ON, DatePickers for bedtime and wake-up time appear. In auto mode, completing the bedtime mission automatically schedules the wake-up alarm.
+
+#### Updated: Gemini AI verification logic (`GeminiService.swift`)
+The AI verification prompt has been enhanced to prioritize **face matching** (using bone structure/facial features) and **location fixed-points** (washstand fixtures, room layout). It now explicitly ignores changes in clothing (pajamas) and bedding (sheets/pillow covers) to ensure stable verification even when your appearance or bed setup changes.
 
 ## Stack
 - Platform: iOS (iPhone)
@@ -136,7 +139,7 @@ Four tabs (Night / Morning / History / Settings). Settings tab lets users toggle
 
 ## セットアップ
 1. `Timesaver/Secrets.plist` を作成し、Gemini APIキーを `GEMINI_API_KEY` として追加（ビルド時にバンドルされます）
-2. Assets.xcassets に自宅の洗面所写真を `reference_washstand` として追加（このファイルはgitignoredされています）
+2. `Assets.xcassets` に自宅の洗面所写真を `reference_washstand` として、就寝時の写真を `reference_bedtime` として追加してください（これらのファイルは gitignore されています）
 3. Xcodeで実機（iOS 17.0+）にビルド
 
 ## アーキテクチャ変更ログ
@@ -174,6 +177,9 @@ Firestoreの `sleep_records` コレクションへの読み書きを実装。ミ
 
 #### 追加: 設定タブと自動/手動アラームモード (`SettingsView.swift`)
 4つ目の「Settings」タブを追加。手動モード（都度設定）と自動モード（固定時刻）を切り替え可能。自動モードがONの場合、就寝・起床時刻のDatePickerが表示されます。自動モードでは、就寝ミッション完了時に起床アラームが自動的にセットされます。
+
+#### 更新: Gemini AI 検証ロジックの強化 (`GeminiService.swift`)
+AI検証プロンプトを刷新。服装（パジャマ）や寝具（シーツ・枕カバー）の変化を無視し、**「ユーザー本人の顔（骨格）」**と**「特定の場所（洗面所の設備や部屋の配置）」**を最優先で照合するように変更しました。これにより、日常生活での些細な変化による認証エラーを最小限に抑えます。
 
 ## スタック
 - プラットフォーム: iOS (iPhone)

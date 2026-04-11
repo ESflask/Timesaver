@@ -1,27 +1,41 @@
 import Foundation
 
 /// 睡眠・起床の記録
+/// Night/Morning両モード対応、各アクションのタイムスタンプを保持
 struct SleepRecord: Codable, Identifiable {
     var id: UUID
-    var date: Date              // 記録日
-    var bedtime: Date?          // 就寝時刻
-    var wakeUpTime: Date?       // 起床時刻（Woke upを押した時刻）
-    var missionCompletedTime: Date?  // ミッション完了時刻
+    var mode: RecordMode           // night or morning
+    var alarmSetTime: Date         // アラームをセットした時刻
+    var alarmFiredTime: Date?      // アラームが鳴り始めた時刻
+    var actionButtonTime: Date?    // 「起きた」or「布団に入った」を押した時刻
+    var missionCompletedTime: Date? // Gemini認証が通った時刻
 
-    /// 就寝から起床までの時間（秒）
-    var sleepDuration: TimeInterval? {
-        guard let bed = bedtime, let wake = wakeUpTime else { return nil }
-        return wake.timeIntervalSince(bed)
+    enum RecordMode: String, Codable {
+        case night
+        case morning
     }
 
-    /// 起床からミッション完了までの時間（秒）
-    var wakeUpDuration: TimeInterval? {
-        guard let wake = wakeUpTime, let done = missionCompletedTime else { return nil }
-        return done.timeIntervalSince(wake)
+    /// アラーム発動 → ボタン押下までの秒数
+    var reactionSeconds: TimeInterval? {
+        guard let fired = alarmFiredTime, let action = actionButtonTime else { return nil }
+        return action.timeIntervalSince(fired)
     }
 
-    init(date: Date = Date()) {
+    /// ボタン押下 → ミッション完了までの秒数
+    var missionSeconds: TimeInterval? {
+        guard let action = actionButtonTime, let done = missionCompletedTime else { return nil }
+        return done.timeIntervalSince(action)
+    }
+
+    /// アラーム発動 → ミッション完了までの総秒数
+    var totalSeconds: TimeInterval? {
+        guard let fired = alarmFiredTime, let done = missionCompletedTime else { return nil }
+        return done.timeIntervalSince(fired)
+    }
+
+    init(mode: RecordMode, alarmSetTime: Date) {
         self.id = UUID()
-        self.date = date
+        self.mode = mode
+        self.alarmSetTime = alarmSetTime
     }
 }

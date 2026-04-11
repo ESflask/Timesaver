@@ -8,8 +8,6 @@
 	</array>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>アラームの通知を送信するために必要です。</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>就寝認証のために写真を選択する必要があります。</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

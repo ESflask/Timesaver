@@ -24,11 +24,6 @@ struct WakeUpSuccessView: View {
                     .font(.title3)
                     .foregroundColor(.secondary)
 
-                Text("アラーム \(scheduler.alarmsFired)回目で起床成功")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 4)
-
                 Text("全てのアラームを停止しました")
                     .font(.caption)
                     .foregroundColor(.secondary)

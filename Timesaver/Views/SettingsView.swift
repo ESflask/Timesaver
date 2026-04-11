@@ -1,84 +1,80 @@
 import SwiftUI
 
-/// 設定画面: APIキーの入力・管理
+/// 設定画面: 手動/自動アラーム切り替え + 自動時の時刻設定
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var apiKey: String = ""
-    @State private var isSaved = false
-    @State private var isKeyVisible = false
+    // 自動設定ON/OFF
+    @AppStorage("autoAlarmEnabled") private var autoAlarmEnabled = false
 
-    private let manager = APIKeyManager.shared
+    // 自動設定用の時刻（時・分をUserDefaultsに保存）
+    @AppStorage("autoBedtimeHour") private var autoBedtimeHour = 23
+    @AppStorage("autoBedtimeMinute") private var autoBedtimeMinute = 0
+    @AppStorage("autoWakeHour") private var autoWakeHour = 7
+    @AppStorage("autoWakeMinute") private var autoWakeMinute = 0
+
+    // DatePicker用のローカル状態
+    @State private var bedtimeDate: Date = Date()
+    @State private var wakeDate: Date = Date()
 
     var body: some View {
         NavigationStack {
             Form {
+                // MARK: - アラームモード選択
                 Section {
-                    HStack {
-                        if isKeyVisible {
-                            TextField("AIza...", text: $apiKey)
-                                .font(.system(.body, design: .monospaced))
-                                .autocorrectionDisabled()
-                                .textInputAutocapitalization(.never)
-                        } else {
-                            SecureField("AIza...", text: $apiKey)
-                                .font(.system(.body, design: .monospaced))
-                                .autocorrectionDisabled()
-                                .textInputAutocapitalization(.never)
-                        }
-
-                        Button {
-                            isKeyVisible.toggle()
-                        } label: {
-                            Image(systemName: isKeyVisible ? "eye.slash" : "eye")
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    Toggle("自動アラーム", isOn: $autoAlarmEnabled.animation())
                 } header: {
-                    Text("Gemini API Key")
+                    Text("アラーム設定モード")
                 } footer: {
-                    Text("キーはこの端末のKeychainに安全に保存されます")
+                    if autoAlarmEnabled {
+                        Text("毎日同じ時刻に自動でアラームがセットされます。Nightタブを開くだけで就寝→起床まで自動管理します。")
+                    } else {
+                        Text("Night・Morningタブから毎回手動でアラームをセットします。")
+                    }
                 }
 
-                Section {
-                    Button {
-                        manager.save(apiKey)
-                        isSaved = true
-                    } label: {
-                        HStack {
-                            Text("保存")
-                            if isSaved {
-                                Spacer()
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
+                // MARK: - 自動設定の時刻
+                if autoAlarmEnabled {
+                    Section {
+                        DatePicker("就寝時刻", selection: $bedtimeDate, displayedComponents: .hourAndMinute)
+                            .onChange(of: bedtimeDate) {
+                                let comps = Calendar.current.dateComponents([.hour, .minute], from: bedtimeDate)
+                                autoBedtimeHour = comps.hour ?? 23
+                                autoBedtimeMinute = comps.minute ?? 0
                             }
+                    } header: {
+                        HStack {
+                            Image(systemName: "moon.fill")
+                                .foregroundColor(.indigo)
+                            Text("就寝")
                         }
+                    } footer: {
+                        Text("この時刻に就寝アラームが鳴ります")
                     }
-                    .disabled(apiKey.isEmpty)
 
-                    if manager.hasAPIKey {
-                        Button(role: .destructive) {
-                            manager.delete()
-                            apiKey = ""
-                            isSaved = false
-                        } label: {
-                            Text("キーを削除")
+                    Section {
+                        DatePicker("起床時刻", selection: $wakeDate, displayedComponents: .hourAndMinute)
+                            .onChange(of: wakeDate) {
+                                let comps = Calendar.current.dateComponents([.hour, .minute], from: wakeDate)
+                                autoWakeHour = comps.hour ?? 7
+                                autoWakeMinute = comps.minute ?? 0
+                            }
+                    } header: {
+                        HStack {
+                            Image(systemName: "sun.max.fill")
+                                .foregroundColor(.orange)
+                            Text("起床")
                         }
+                    } footer: {
+                        Text("就寝認証クリア後、この時刻に起床アラームが自動セットされます")
                     }
                 }
             }
             .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("閉じる") { dismiss() }
-                }
-            }
             .onAppear {
-                // 既存キーがあればマスク表示用に読み込み
-                if let existing = manager.load() {
-                    apiKey = existing
-                }
+                // 保存済みの時刻をDatePickerに反映
+                let cal = Calendar.current
+                bedtimeDate = cal.date(bySettingHour: autoBedtimeHour, minute: autoBedtimeMinute, second: 0, of: Date()) ?? Date()
+                wakeDate = cal.date(bySettingHour: autoWakeHour, minute: autoWakeMinute, second: 0, of: Date()) ?? Date()
             }
         }
     }

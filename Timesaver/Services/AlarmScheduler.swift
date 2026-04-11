@@ -6,8 +6,6 @@ import UserNotifications
 class AlarmScheduler: ObservableObject {
     @Published var session: WakeSession?
     @Published var currentState: AppState = .idle
-    @Published var alarmsFired: Int = 0
-    @Published var isScheduling: Bool = false
 
     let brightnessManager = ScreenBrightnessManager()
     let soundManager = AlarmSoundManager()
@@ -45,15 +43,21 @@ class AlarmScheduler: ObservableObject {
 
     // MARK: - セッション管理
 
-    /// デッドライン時刻を設定し、第1バッチのアラームを作成してループ監視を開始
-    func setDeadline(_ deadline: Date, alarmCount: Int = 30) {
-        var session = WakeSession(deadlineTime: deadline, totalAlarms: alarmCount)
+    /// アラーム開始時刻を設定し、無制限アラームを開始
+    func setAlarm(_ startTime: Date) {
+        var session = WakeSession(alarmStartTime: startTime)
         session.isActive = true
         self.session = session
         saveSession()
 
-        // 第1バッチ作成
-        scheduleAlarmBatch(startTime: session.alarmStartTime, count: session.totalAlarms, batchIndex: 0)
+        // レコード開始
+        historyManager?.startMorningRecord(alarmTime: startTime)
+
+        // 無音ループ開始（バックグラウンド維持）
+        soundManager.startSilenceLoop()
+
+        // 直近のバックアップ通知をスケジュール（最大64件 = iOSの上限）
+        scheduleBackupNotifications(from: startTime)
 
         // ループ監視タイマー開始
         startMonitoringTimer()
@@ -63,47 +67,41 @@ class AlarmScheduler: ObservableObject {
         }
     }
 
-    /// 指定開始時刻からN回分のアラームをスケジュール
-    private func scheduleAlarmBatch(startTime: Date, count: Int, batchIndex: Int) {
-        isScheduling = true
+    /// バックアップ用ローカル通知を1分おきにスケジュール（最大64件）
+    private func scheduleBackupNotifications(from startTime: Date) {
+        // 既存の起床アラーム通知を削除
+        notificationCenter.removePendingNotificationRequests(withIdentifiers:
+            (0..<64).map { "wake-alarm-\($0)" })
 
-        // ローカル通知でアラームをスケジュール
-        addBackupNotifications(startTime: startTime, count: count, batchIndex: batchIndex)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.isScheduling = false
-        }
-    }
-
-    /// バックアップ用ローカル通知を追加（バッチごとにIDを分けて既存通知を上書きしない）
-    private func addBackupNotifications(startTime: Date, count: Int, batchIndex: Int) {
-        for i in 0..<count {
+        let now = Date()
+        let calendar = Calendar.current
+        for i in 0..<64 {
             let alarmTime = startTime.addingTimeInterval(TimeInterval(i * 60))
+            guard alarmTime > now else { continue }
+
             let content = UNMutableNotificationContent()
             content.title = "起きて！"
-            content.body = "アラーム \(i + 1)/\(count) — アプリを開いてミッションをクリア"
+            content.body = "アプリを開いてミッションをクリア"
             content.sound = UNNotificationSound.defaultCritical
             content.interruptionLevel = .critical
             content.categoryIdentifier = "WAKE_ALARM"
 
-            let calendar = Calendar.current
             let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: alarmTime)
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            let identifier = "backup-alarm-\(batchIndex)-\(i)"
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+            let request = UNNotificationRequest(identifier: "wake-alarm-\(i)", content: content, trigger: trigger)
             notificationCenter.add(request)
         }
     }
 
     // MARK: - ループ監視タイマー
 
-    /// 60秒ごとに状態をチェックし、必要に応じて次のバッチを作成
+    /// 60秒ごとに状態をチェックし、アラーム発動・通知補充を行う
     private func startMonitoringTimer() {
         alarmTimer?.invalidate()
 
         alarmTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             guard let self = self,
-                  var session = self.session,
+                  let session = self.session,
                   self.currentState != .success,
                   self.currentState != .missionActive,
                   self.currentState != .nightArmed,
@@ -113,29 +111,17 @@ class AlarmScheduler: ObservableObject {
 
             let now = Date()
 
-            // ringing 状態への遷移（初回アラーム開始時刻を過ぎたら）
+            // ringing 状態への遷移（アラーム開始時刻を過ぎたら）
             if self.currentState == .armed, now >= session.alarmStartTime {
                 DispatchQueue.main.async {
+                    self.historyManager?.recordAlarmFired()
                     self.currentState = .ringing
                 }
             }
 
-            // 次バッチ作成チェック: 現在バッチのN+1分後になったら次バッチを作成
-            if now >= session.nextBatchStartTime {
-                let nextBatchStart = session.nextBatchStartTime
-                let batchIndex = session.scheduledBatches
-
-                session.scheduledBatches += 1
-                self.session = session
-                self.saveSession()
-
-                DispatchQueue.main.async {
-                    self.scheduleAlarmBatch(
-                        startTime: nextBatchStart,
-                        count: session.totalAlarms,
-                        batchIndex: batchIndex
-                    )
-                }
+            // ringing中は通知を補充し続ける（起きるまで無制限）
+            if self.currentState == .ringing {
+                self.scheduleBackupNotifications(from: now.addingTimeInterval(60))
             }
         }
     }
@@ -146,6 +132,9 @@ class AlarmScheduler: ObservableObject {
 
     /// 就寝時刻にアラームをセットし、時刻到来でnightRinging状態に遷移
     func setBedtimeAlarm(_ bedtime: Date) {
+        // レコード開始
+        historyManager?.startNightRecord(alarmTime: bedtime)
+
         // バックアップ通知
         let content = UNMutableNotificationContent()
         content.title = "おやすみの時間です"
@@ -159,16 +148,21 @@ class AlarmScheduler: ObservableObject {
         let request = UNNotificationRequest(identifier: "bedtime-alarm", content: content, trigger: trigger)
         notificationCenter.add(request)
 
+        // 無音ループ開始（バックグラウンド維持）
+        soundManager.startSilenceLoop()
+
         // アプリ内タイマーで状態遷移
         let interval = bedtime.timeIntervalSinceNow
         if interval <= 0 {
             // 既に時刻を過ぎている場合は即発動
+            historyManager?.recordAlarmFired()
             currentState = .nightRinging
         } else {
             currentState = .nightArmed
             bedtimeTimer?.invalidate()
             bedtimeTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
                 DispatchQueue.main.async {
+                    self?.historyManager?.recordAlarmFired()
                     self?.currentState = .nightRinging
                 }
             }
@@ -179,18 +173,23 @@ class AlarmScheduler: ObservableObject {
     func startNightMission() {
         soundManager.stopAlarm()
         soundManager.startVibration()
+        historyManager?.recordActionButton()
         currentState = .nightMission
     }
 
-    /// 就寝ミッション完了 → 振動停止 → 就寝成功
+    /// 就寝ミッション完了 → 振動停止 → 就寝成功 → 自動モード時は起床アラームもセット
     func nightMissionCompleted() {
         soundManager.stopVibration()
-        historyManager?.recordBedtime(Date())
+        soundManager.stopSilenceLoop()
+        historyManager?.recordMissionCompleted()
         currentState = .nightSuccess
         // 就寝アラーム関連のみキャンセル
         bedtimeTimer?.invalidate()
         bedtimeTimer = nil
         notificationCenter.removePendingNotificationRequests(withIdentifiers: ["bedtime-alarm"])
+
+        // 自動モード: 就寝成功後に起床アラームを自動セット
+        scheduleAutoWakeIfNeeded()
     }
 
     // MARK: - ユーザーアクション
@@ -199,7 +198,7 @@ class AlarmScheduler: ObservableObject {
     func startMission() {
         soundManager.stopAlarm()
         soundManager.startVibration()
-        historyManager?.recordWakeUp()
+        historyManager?.recordActionButton()
         currentState = .missionActive
     }
 
@@ -217,6 +216,7 @@ class AlarmScheduler: ObservableObject {
     func cancelAllAlarms() {
         alarmTimer?.invalidate()
         alarmTimer = nil
+        soundManager.stopSilenceLoop()
         notificationCenter.removeAllPendingNotificationRequests()
     }
 
@@ -225,9 +225,56 @@ class AlarmScheduler: ObservableObject {
         cancelAllAlarms()
         session = nil
         currentState = .idle
-        alarmsFired = 0
-        isScheduling = false
         clearSession()
+    }
+
+    // MARK: - 自動アラーム
+
+    /// 自動設定の時刻から今日or明日のDateを計算して両方セット
+    func scheduleAutoAlarms() {
+        let cal = Calendar.current
+        let now = Date()
+
+        let bedHour = UserDefaults.standard.integer(forKey: "autoBedtimeHour")
+        let bedMin  = UserDefaults.standard.integer(forKey: "autoBedtimeMinute")
+        let wakeHour = UserDefaults.standard.integer(forKey: "autoWakeHour")
+        let wakeMin  = UserDefaults.standard.integer(forKey: "autoWakeMinute")
+
+        // 就寝アラーム: 今日の時刻が過ぎていたら明日
+        var bedtime = cal.date(bySettingHour: bedHour, minute: bedMin, second: 0, of: now)!
+        if bedtime <= now {
+            bedtime = cal.date(byAdding: .day, value: 1, to: bedtime)!
+        }
+
+        // 起床アラーム: 就寝より後になるように調整
+        var wakeTime = cal.date(bySettingHour: wakeHour, minute: wakeMin, second: 0, of: now)!
+        if wakeTime <= now {
+            wakeTime = cal.date(byAdding: .day, value: 1, to: wakeTime)!
+        }
+        // 起床が就寝より前なら翌日に
+        if wakeTime <= bedtime {
+            wakeTime = cal.date(byAdding: .day, value: 1, to: wakeTime)!
+        }
+
+        // まず就寝アラームをセット
+        setBedtimeAlarm(bedtime)
+
+        // 起床アラームは就寝成功後にセットするため保存しておく
+        UserDefaults.standard.set(wakeTime.timeIntervalSince1970, forKey: "pendingAutoWakeTime")
+    }
+
+    /// 就寝成功後に起床アラームを自動セット（自動モード時のみ）
+    func scheduleAutoWakeIfNeeded() {
+        guard UserDefaults.standard.bool(forKey: "autoAlarmEnabled"),
+              let timestamp = UserDefaults.standard.object(forKey: "pendingAutoWakeTime") as? Double else { return }
+
+        let wakeTime = Date(timeIntervalSince1970: timestamp)
+        UserDefaults.standard.removeObject(forKey: "pendingAutoWakeTime")
+
+        // 少し待ってからセット（就寝成功画面を表示する余裕）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.setAlarm(wakeTime)
+        }
     }
 
     // MARK: - 永続化
@@ -243,8 +290,13 @@ class AlarmScheduler: ObservableObject {
               let saved = try? JSONDecoder().decode(WakeSession.self, from: data) else { return }
         session = saved
         if saved.isActive {
-            currentState = saved.alarmStartTime <= Date() ? .ringing : .armed
+            let now = Date()
+            currentState = now >= saved.alarmStartTime ? .ringing : .armed
             startMonitoringTimer()
+            // アプリ再起動時に通知を補充
+            if now >= saved.alarmStartTime {
+                scheduleBackupNotifications(from: now.addingTimeInterval(60))
+            }
         }
     }
 
