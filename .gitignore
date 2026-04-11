@@ -33,3 +33,4 @@ Timesaver/Secrets.plist
 Timesaver/Assets.xcassets/reference_washstand.imageset/
 Timesaver/Assets.xcassets/reference_bedtime.imageset/
 Timesaver/GoogleService-Info.plist
+\n# 参照写真（プライバシー保護のため Git 管理外）\nTimesaver/Assets.xcassets/reference_bedtime.imageset/*\n!Timesaver/Assets.xcassets/reference_bedtime.imageset/Contents.json\nTimesaver/Assets.xcassets/reference_washstand.imageset/*\n!Timesaver/Assets.xcassets/reference_washstand.imageset/Contents.json

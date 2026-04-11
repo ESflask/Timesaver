@@ -6,6 +6,7 @@ import UserNotifications
 class AlarmScheduler: ObservableObject {
     @Published var session: WakeSession?
     @Published var currentState: AppState = .idle
+    @Published var consecutiveErrors: Int = 0 // 通信エラーの連続回数
 
     let brightnessManager = ScreenBrightnessManager()
     let soundManager = AlarmSoundManager()
@@ -19,6 +20,7 @@ class AlarmScheduler: ObservableObject {
         case armed             // 起床アラームセット済み（就寝中）
         case ringing           // 起床アラーム発動中
         case missionActive     // 起床ミッション実行中（洗面台認証）
+        case fallbackMission   // オフライン救済ミッション（シェイク）
         case success           // 起床成功
         case nightArmed        // 就寝アラームセット済み
         case nightRinging      // 就寝アラーム発動中
@@ -196,10 +198,31 @@ class AlarmScheduler: ObservableObject {
 
     /// 「Woke up」→ 音を止めて振動に切り替え → ミッション開始
     func startMission() {
+        consecutiveErrors = 0
         soundManager.stopAlarm()
         soundManager.startVibration()
         historyManager?.recordActionButton()
         currentState = .missionActive
+    }
+
+    /// 「Went to bed」→ 音を止めて振動に切り替え → 就寝ミッション開始
+    func startNightMission() {
+        consecutiveErrors = 0
+        soundManager.stopAlarm()
+        soundManager.startVibration()
+        historyManager?.recordActionButton()
+        currentState = .nightMission
+    }
+
+    /// 通信エラーを報告
+    func reportCommunicationError() {
+        consecutiveErrors += 1
+    }
+
+    /// オフライン救済ミッション（シェイク）に切り替え
+    func switchToFallbackMission() {
+        currentState = .fallbackMission
+        saveSession()
     }
 
     /// ミッション完了 → 振動停止・全アラーム解除 → 成功画面

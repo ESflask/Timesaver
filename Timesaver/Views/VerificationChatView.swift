@@ -88,6 +88,26 @@ struct VerificationChatView: View {
                 .padding(.top, 8)
             }
 
+            // オフライン救済ボタン
+            if scheduler.consecutiveErrors >= 3 {
+                Button {
+                    scheduler.switchToFallbackMission()
+                } label: {
+                    HStack {
+                        Image(systemName: "iphone.radiowaves.left.and.right")
+                        Text("オフラインミッション（シェイク）に切り替える")
+                            .fontWeight(.bold)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.orange)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                }
+            }
+
             // 入力バー
             inputBar
         }
@@ -223,12 +243,20 @@ struct VerificationChatView: View {
                     }
                 }
             } catch {
-                let errorMessage = ChatMessage(
+                scheduler.reportCommunicationError()
+                
+                var errorText = "エラーが発生しました: \(error.localizedDescription)\nもう一度写真を送ってみてください。"
+                
+                if scheduler.consecutiveErrors >= 3 {
+                    errorText += "\n\n⚠️ ネットワークが不安定なようです。通信を伴わない「シェイクミッション」に切り替えることも可能です。"
+                }
+
+                let aiMessage = ChatMessage(
                     isUser: false,
-                    text: "エラーが発生しました: \(error.localizedDescription)\nもう一度写真を送ってみてください。",
+                    text: errorText,
                     image: nil
                 )
-                messages.append(errorMessage)
+                messages.append(aiMessage)
             }
             isLoading = false
         }

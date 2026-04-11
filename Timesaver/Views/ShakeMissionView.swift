@@ -9,7 +9,7 @@ struct ShakeMissionView: View {
     @State private var motionManager = CMMotionManager()
     @State private var isMonitoring = false
 
-    private let requiredShakes = 30  // 必要なシェイク回数
+    private let requiredShakes = 100  // 必要なシェイク回数
 
     var progress: Double {
         Double(shakeCount) / Double(requiredShakes)

@@ -41,6 +41,10 @@ struct ContentView: View {
             AlarmActiveView(mode: .morning)
         case .missionActive:
             VerificationChatView(mode: .morning)
+        case .fallbackMission:
+            ShakeMissionView {
+                scheduler.missionCompleted()
+            }
         case .success:
             WakeUpSuccessView()
         // Night

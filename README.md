@@ -11,7 +11,8 @@ Since the app works by playing silent audio files while you sleep, it's highly u
 
 ### Morning — Wake-up Alarm
 - Set your alarm time — **no alarm count setting**; alarms fire every 1 minute indefinitely until you tap "Woke up"
-- While sleeping, `silence.wav` plays silently on loop to keep the app alive in the background
+- While sleeping, `silence.wav` plays silently on loop (starts immediately after setting alarm) to keep the app alive in the background — phone can be locked right away
+- When alarm time arrives, the in-app Timer auto-switches from silence to alarm sound; Now Playing on the lock screen shows "Tap here to open app" so the user can return to the app
 - Tap "Woke up" → alarm sound stops → **vibration starts** (cannot be stopped manually)
 - Take a photo of yourself at your washstand and send it to Gemini AI
   - Your home washstand reference photo is pre-registered in the app (gitignored)
@@ -36,8 +37,11 @@ Since the app works by playing silent audio files while you sleep, it's highly u
 ## How It Works
 
 ```
-Set alarm → sleep (silence.wav keeps app alive)
+Set alarm → silence.wav loop starts immediately → sleep (phone can be locked)
+  → in-app Timer detects alarm time → auto-switch from silence to alarm sound
   → alarm fires every 1 min (infinite loop)
+  → Now Playing shows "Tap here to open app" on lock screen
+  → user taps Now Playing → returns to app
   → "Woke up" tap → sound off, vibration on
   → take photo at washstand → send to Gemini API
   → Gemini says "result: true" → vibration stops → done
@@ -105,7 +109,8 @@ The AI verification prompt has been enhanced to prioritize **face matching** (us
 
 ### 朝 — 起床アラーム
 - アラーム時刻の設定 — **回数設定はありません**。「起きた」をタップするまで、1分おきに無期限で鳴り続けます。
-- 睡眠中、`silence.wav` がループ再生され、バックグラウンドでのアプリ生存を維持します。
+- アラームセット直後に `silence.wav` の無音ループ再生が開始され、バックグラウンドでのアプリ生存を維持します。セット後すぐにiPhoneをロック（スリープ）して就寝可能。
+- 設定時刻になるとアプリ内タイマーが自動検知し、無音ループから有音アラームに切替。ロック画面のNow Playingエリアに「ここをタップしてアプリを開く」と表示され、タップでアプリに復帰。
 - 「起きた」をタップ → アラーム音が停止 → **バイブレーション開始**（手動では停止不可）
 - 洗面所で自分の写真を撮り、Gemini AIに送信
   - 自宅の洗面所の参照写真はアプリ内に事前登録（gitignored）
@@ -129,8 +134,10 @@ The AI verification prompt has been enhanced to prioritize **face matching** (us
 ## 仕組み
 
 ```
-アラーム設定 → 睡眠（silence.wav でアプリを維持）
+アラーム設定 → 無音ループ即開始 → スリープ可能（iPhoneロックOK）
+  → アプリ内タイマーが設定時刻を自動検知 → 無音→有音アラームに切替
   → 1分おきにアラーム鳴動（無限ループ）
+  → ロック画面のNow Playing「ここをタップしてアプリを開く」をタップ → アプリに復帰
   → 「起きた」タップ → 音停止、バイブ開始
   → 洗面所で写真撮影 → Gemini APIに送信
   → Gemini が "result: true" と回答 → バイブ停止 → 完了
