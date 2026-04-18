@@ -16,6 +16,7 @@ class AlarmScheduler: ObservableObject {
     private let notificationCenter = UNUserNotificationCenter.current()
     private let sessionKey = "currentWakeSession"
     private var alarmTimer: Timer?
+    private var alarmFireTimer: Timer?
 
     enum AppState {
         case idle              // 待機中
@@ -73,11 +74,15 @@ class AlarmScheduler: ObservableObject {
         // 直近のバックアップ通知をスケジュール（最大64件 = iOSの上限）
         scheduleBackupNotifications(from: startTime)
 
+        currentState = .armed
+
         // ループ監視タイマー開始
         startMonitoringTimer()
 
-        DispatchQueue.main.async {
-            self.currentState = .armed
+        if startTime <= Date() {
+            triggerMorningAlarmIfNeeded()
+        } else {
+            scheduleMorningAlarmFireTimer(for: startTime)
         }
     }
 
@@ -113,31 +118,95 @@ class AlarmScheduler: ObservableObject {
     private func startMonitoringTimer() {
         alarmTimer?.invalidate()
 
-        alarmTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            guard let self = self,
-                  let session = self.session,
-                  self.currentState != .success,
-                  self.currentState != .missionActive,
-                  self.currentState != .nightArmed,
-                  self.currentState != .nightRinging,
-                  self.currentState != .nightMission,
-                  self.currentState != .nightSuccess else { return }
+        let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.handleMonitoringTimerTick()
+            }
+        }
+        alarmTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
 
-            let now = Date()
+    private func handleMonitoringTimerTick() {
+        guard let session,
+              currentState != .success,
+              currentState != .missionActive,
+              currentState != .nightArmed,
+              currentState != .nightRinging,
+              currentState != .nightMission,
+              currentState != .nightSuccess else { return }
 
-            // ringing 状態への遷移（アラーム開始時刻を過ぎたら）
-            if self.currentState == .armed, now >= session.alarmStartTime {
-                DispatchQueue.main.async {
-                    self.historyManager?.recordAlarmFired()
-                    self.soundManager.playAlarm()
-                    self.currentState = .ringing
+        let now = Date()
+
+        // ringing 状態への遷移（アラーム開始時刻を過ぎたら）
+        if currentState == .armed, now >= session.alarmStartTime {
+            triggerMorningAlarmIfNeeded(now: now)
+        }
+
+        // ringing中は通知を補充し続ける（起きるまで無制限）
+        if currentState == .ringing {
+            scheduleBackupNotifications(from: now.addingTimeInterval(60))
+        }
+    }
+
+    /// 起床アラームを予定時刻に発火させる単発タイマー
+    private func scheduleMorningAlarmFireTimer(for startTime: Date) {
+        alarmFireTimer?.invalidate()
+
+        let interval = max(startTime.timeIntervalSinceNow, 0.1)
+        let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.triggerMorningAlarmIfNeeded()
+            }
+        }
+        alarmFireTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    /// 起床アラームの状態と音声を同時に発火・復旧する
+    private func triggerMorningAlarmIfNeeded(now: Date = Date()) {
+        guard let session,
+              session.isActive,
+              now >= session.alarmStartTime,
+              currentState == .armed || currentState == .ringing else { return }
+
+        let shouldRecordFire = currentState != .ringing
+        if shouldRecordFire {
+            historyManager?.recordAlarmFired()
+        }
+        if !soundManager.isPlaying {
+            soundManager.playAlarm()
+        }
+        brightnessManager.maximizeBrightness()
+        currentState = .ringing
+        scheduleBackupNotifications(from: now.addingTimeInterval(60))
+    }
+
+    /// アプリ復帰時に保存済み状態と実際の音声状態を同期する
+    func refreshAlarmState() {
+        let now = Date()
+
+        if let session, session.isActive {
+            if now >= session.alarmStartTime {
+                if currentState == .armed {
+                    triggerMorningAlarmIfNeeded(now: now)
+                } else if currentState == .ringing, !soundManager.isPlaying {
+                    soundManager.playAlarm()
                 }
+                if currentState == .ringing {
+                    brightnessManager.maximizeBrightness()
+                }
+            } else if currentState == .armed {
+                soundManager.startSilenceLoop()
+                scheduleMorningAlarmFireTimer(for: session.alarmStartTime)
             }
+        }
 
-            // ringing中は通知を補充し続ける（起きるまで無制限）
-            if self.currentState == .ringing {
-                self.scheduleBackupNotifications(from: now.addingTimeInterval(60))
-            }
+        if currentState == .nightRinging, !soundManager.isPlaying {
+            soundManager.playAlarm()
+        }
+        if currentState == .nightRinging {
+            brightnessManager.maximizeBrightness()
         }
     }
 
@@ -170,20 +239,31 @@ class AlarmScheduler: ObservableObject {
         let interval = bedtime.timeIntervalSinceNow
         if interval <= 0 {
             // 既に時刻を過ぎている場合は即発動
-            historyManager?.recordAlarmFired()
-            soundManager.playAlarm()
-            currentState = .nightRinging
+            triggerNightAlarmIfNeeded()
         } else {
             currentState = .nightArmed
             bedtimeTimer?.invalidate()
-            bedtimeTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
-                DispatchQueue.main.async {
-                    self?.historyManager?.recordAlarmFired()
-                    self?.soundManager.playAlarm()
-                    self?.currentState = .nightRinging
+            let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
+                Task { @MainActor in
+                    self?.triggerNightAlarmIfNeeded()
                 }
             }
+            bedtimeTimer = timer
+            RunLoop.main.add(timer, forMode: .common)
         }
+    }
+
+    /// 就寝アラームの状態と音声を同時に発火・復旧する
+    private func triggerNightAlarmIfNeeded() {
+        let shouldRecordFire = currentState != .nightRinging
+        if shouldRecordFire {
+            historyManager?.recordAlarmFired()
+        }
+        if !soundManager.isPlaying {
+            soundManager.playAlarm()
+        }
+        brightnessManager.maximizeBrightness()
+        currentState = .nightRinging
     }
 
     // MARK: - ユーザーアクション
@@ -192,6 +272,7 @@ class AlarmScheduler: ObservableObject {
     func startNightMission() {
         consecutiveErrors = 0
         soundManager.stopAlarm()
+        soundManager.startSilenceLoop()
         soundManager.startVibration()
         historyManager?.recordActionButton()
         currentState = .nightMission
@@ -201,6 +282,7 @@ class AlarmScheduler: ObservableObject {
     func nightMissionCompleted() {
         soundManager.stopVibration()
         soundManager.stopSilenceLoop()
+        brightnessManager.restoreBrightness()
         historyManager?.recordMissionCompleted()
         currentState = .nightSuccess
         // 就寝アラーム関連のみキャンセル
@@ -216,6 +298,7 @@ class AlarmScheduler: ObservableObject {
     func startMission() {
         consecutiveErrors = 0
         soundManager.stopAlarm()
+        soundManager.startSilenceLoop()
         soundManager.startVibration()
         historyManager?.recordActionButton()
         currentState = .missionActive
@@ -239,6 +322,7 @@ class AlarmScheduler: ObservableObject {
     /// ミッション完了 → 振動停止・全アラーム解除 → 成功画面
     func missionCompleted() {
         soundManager.stopVibration()
+        brightnessManager.restoreBrightness()
         historyManager?.recordMissionCompleted()
         currentState = .success
         cancelAllAlarms()
@@ -250,6 +334,9 @@ class AlarmScheduler: ObservableObject {
     func cancelAllAlarms() {
         alarmTimer?.invalidate()
         alarmTimer = nil
+        alarmFireTimer?.invalidate()
+        alarmFireTimer = nil
+        soundManager.stopAlarm()
         soundManager.stopSilenceLoop()
         notificationCenter.removeAllPendingNotificationRequests()
     }
@@ -302,10 +389,14 @@ class AlarmScheduler: ObservableObject {
         if saved.isActive {
             let now = Date()
             currentState = now >= saved.alarmStartTime ? .ringing : .armed
+            soundManager.startSilenceLoop()
             startMonitoringTimer()
             // アプリ再起動時に通知を補充
             if now >= saved.alarmStartTime {
+                soundManager.playAlarm()
                 scheduleBackupNotifications(from: now.addingTimeInterval(60))
+            } else {
+                scheduleMorningAlarmFireTimer(for: saved.alarmStartTime)
             }
         }
     }

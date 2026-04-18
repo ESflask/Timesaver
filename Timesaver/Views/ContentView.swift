@@ -862,6 +862,9 @@ struct NightSuccessView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 40)
         }
+        .onAppear {
+            scheduler.brightnessManager.restoreBrightness()
+        }
     }
 }
 
