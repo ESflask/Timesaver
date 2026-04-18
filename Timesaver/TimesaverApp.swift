@@ -16,6 +16,7 @@ struct TimesaverApp: App {
     @StateObject private var scheduler = AlarmScheduler()
     @StateObject private var historyManager = SleepHistoryManager()
     @StateObject private var settingsStore = AlarmSettingsStore()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -30,6 +31,12 @@ struct TimesaverApp: App {
                     historyManager.fetchFromFirestore()
                     Task {
                         await settingsStore.fetchFromFirestore()
+                    }
+                    scheduler.refreshAlarmState()
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        scheduler.refreshAlarmState()
                     }
                 }
         }

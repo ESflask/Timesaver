@@ -7,6 +7,7 @@ class AlarmSoundManager: ObservableObject {
     private var audioPlayer: AVAudioPlayer?
     private var silencePlayer: AVAudioPlayer?
     private var vibrationTimer: Timer?
+    private var systemSoundTimer: Timer?
     @Published var isPlaying = false
     @Published var isVibrating = false
     @Published var isSilencePlaying = false
@@ -26,9 +27,10 @@ class AlarmSoundManager: ObservableObject {
         do {
             silencePlayer = try AVAudioPlayer(contentsOf: url)
             silencePlayer?.numberOfLoops = -1  // 無限ループ
-            silencePlayer?.volume = 0.0        // 完全無音
-            silencePlayer?.play()
-            isSilencePlaying = true
+            // 音源自体が無音なので、プレイヤー音量は下げずに再生状態を維持する
+            silencePlayer?.volume = 1.0
+            silencePlayer?.prepareToPlay()
+            isSilencePlaying = silencePlayer?.play() == true
             disableRemoteControls()
         } catch {
             print("無音ループ再生に失敗: \(error.localizedDescription)")
@@ -87,6 +89,7 @@ class AlarmSoundManager: ObservableObject {
         silencePlayer?.stop()
         silencePlayer = nil
         isSilencePlaying = false
+        clearNowPlayingInfo()
 
         // リモートコマンドのハンドラを解除
         let commandCenter = MPRemoteCommandCenter.shared()
@@ -99,26 +102,35 @@ class AlarmSoundManager: ObservableObject {
 
     /// アラーム音を適度な音量でループ再生
     func playAlarm() {
+        guard !isPlaying else { return }
+
+        if !isSilencePlaying {
+            startSilenceLoop()
+        }
+
         // オーディオセッションを設定（サイレントモードでも鳴るように）
         configureAudioSession()
         // ロック画面のNow Playingにタップを促す情報を表示
         updateNowPlayingForAlarm()
 
-        guard let url = Bundle.main.url(forResource: "alarm_sound", withExtension: "mp3") else {
-            // バンドルに音声ファイルがない場合はシステムサウンドで代替
-            playSystemSound()
-            return
-        }
-
-        do {
-            audioPlayer = try AVAudioPlayer(contentsOf: url)
-            audioPlayer?.numberOfLoops = -1  // 無限ループ
-            audioPlayer?.volume = 0.7        // 適度な音量
-            audioPlayer?.play()
-            isPlaying = true
-        } catch {
-            print("アラーム音の再生に失敗: \(error.localizedDescription)")
-            playSystemSound()
+        if let url = alarmSoundURL() {
+            do {
+                audioPlayer = try AVAudioPlayer(contentsOf: url)
+                audioPlayer?.numberOfLoops = -1  // 無限ループ
+                audioPlayer?.volume = 0.8        // サイレントモードでも気づける音量
+                audioPlayer?.prepareToPlay()
+                isPlaying = audioPlayer?.play() == true
+                if !isPlaying {
+                    print("アラーム音の再生開始に失敗しました")
+                    playGeneratedAlarm()
+                }
+            } catch {
+                print("アラーム音の再生に失敗: \(error.localizedDescription)")
+                playGeneratedAlarm()
+            }
+        } else {
+            print("alarm_sound が見つからないため合成アラーム音を使用します")
+            playGeneratedAlarm()
         }
     }
 
@@ -129,6 +141,16 @@ class AlarmSoundManager: ObservableObject {
         systemSoundTimer?.invalidate()
         systemSoundTimer = nil
         isPlaying = false
+    }
+
+    /// バンドル内のアラーム音を拡張子違いも含めて探す
+    private func alarmSoundURL() -> URL? {
+        for fileExtension in ["mp3", "m4a", "wav", "caf", "aiff"] {
+            if let url = Bundle.main.url(forResource: "alarm_sound", withExtension: fileExtension) {
+                return url
+            }
+        }
+        return nil
     }
 
     // MARK: - 振動
@@ -182,18 +204,28 @@ class AlarmSoundManager: ObservableObject {
 
     // MARK: - システムサウンド代替
 
-    /// カスタム音声ファイルがない場合のフォールバック
-    private func playSystemSound() {
-        // システムのアラーム音を使用（1005 = 短いアラート音）
-        AudioServicesPlaySystemSound(1005)
-        // 繰り返し再生のためタイマーで呼び出し
-        isPlaying = true
-        scheduleSystemSoundLoop()
+    /// カスタム音声ファイルがない場合でもバックグラウンド再生を維持できるフォールバック
+    private func playGeneratedAlarm() {
+        do {
+            audioPlayer = try AVAudioPlayer(data: makeAlarmToneWAVData())
+            audioPlayer?.numberOfLoops = -1
+            audioPlayer?.volume = 0.85
+            audioPlayer?.prepareToPlay()
+            isPlaying = audioPlayer?.play() == true
+            if !isPlaying {
+                print("合成アラーム音の再生開始に失敗しました")
+                playSystemSoundFallback()
+            }
+        } catch {
+            print("合成アラーム音の再生に失敗: \(error.localizedDescription)")
+            playSystemSoundFallback()
+        }
     }
 
-    private var systemSoundTimer: Timer?
-
-    private func scheduleSystemSoundLoop() {
+    /// AVAudioPlayer が使えない場合の最終フォールバック
+    private func playSystemSoundFallback() {
+        AudioServicesPlaySystemSound(1005)
+        isPlaying = true
         systemSoundTimer?.invalidate()
         systemSoundTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             guard let self = self, self.isPlaying else {
@@ -202,6 +234,66 @@ class AlarmSoundManager: ObservableObject {
             }
             AudioServicesPlaySystemSound(1005)
         }
+        if let systemSoundTimer {
+            RunLoop.main.add(systemSoundTimer, forMode: .common)
+        }
+    }
+
+    /// 1秒の警告音WAVをメモリ上で生成する
+    private func makeAlarmToneWAVData() -> Data {
+        let sampleRate = 44_100
+        let duration = 1.0
+        let sampleCount = Int(Double(sampleRate) * duration)
+        let channelCount = 1
+        let bitsPerSample = 16
+        let byteRate = sampleRate * channelCount * bitsPerSample / 8
+        let blockAlign = channelCount * bitsPerSample / 8
+        let dataSize = sampleCount * blockAlign
+
+        var data = Data()
+        appendASCII("RIFF", to: &data)
+        appendUInt32LE(UInt32(36 + dataSize), to: &data)
+        appendASCII("WAVE", to: &data)
+        appendASCII("fmt ", to: &data)
+        appendUInt32LE(16, to: &data)
+        appendUInt16LE(1, to: &data)
+        appendUInt16LE(UInt16(channelCount), to: &data)
+        appendUInt32LE(UInt32(sampleRate), to: &data)
+        appendUInt32LE(UInt32(byteRate), to: &data)
+        appendUInt16LE(UInt16(blockAlign), to: &data)
+        appendUInt16LE(UInt16(bitsPerSample), to: &data)
+        appendASCII("data", to: &data)
+        appendUInt32LE(UInt32(dataSize), to: &data)
+
+        for index in 0..<sampleCount {
+            let phase = Double(index) / Double(sampleRate)
+            let frequency = index < sampleCount / 2 ? 880.0 : 660.0
+            let envelope = sin(.pi * Double(index) / Double(sampleCount))
+            let sample = Int16(sin(2.0 * .pi * frequency * phase) * envelope * 28_000)
+            appendUInt16LE(UInt16(bitPattern: sample), to: &data)
+        }
+
+        return data
+    }
+
+    private func appendASCII(_ string: String, to data: inout Data) {
+        data.append(contentsOf: string.utf8)
+    }
+
+    private func appendUInt16LE(_ value: UInt16, to data: inout Data) {
+        data.append(UInt8(value & 0x00ff))
+        data.append(UInt8((value & 0xff00) >> 8))
+    }
+
+    private func appendUInt32LE(_ value: UInt32, to data: inout Data) {
+        data.append(UInt8(value & 0x000000ff))
+        data.append(UInt8((value & 0x0000ff00) >> 8))
+        data.append(UInt8((value & 0x00ff0000) >> 16))
+        data.append(UInt8((value & 0xff000000) >> 24))
+    }
+
+    private func clearNowPlayingInfo() {
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 
     deinit {

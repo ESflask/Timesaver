@@ -1,5 +1,4 @@
 import SwiftUI
-import AVFoundation
 
 /// アラーム発動中画面: Night/Morning共通。モードに応じてテキスト・色を切り替え
 struct AlarmActiveView: View {
@@ -65,11 +64,6 @@ struct AlarmActiveView: View {
         }
         .onAppear {
             isFlashing = true
-            scheduler.soundManager.playAlarm()
-            scheduler.brightnessManager.maximizeBrightness()
-        }
-        .onDisappear {
-            scheduler.soundManager.stopAlarm()
         }
     }
 }
