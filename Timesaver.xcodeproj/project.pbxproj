@@ -54,6 +54,8 @@
 		AA000024 /* VerificationChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000024 /* VerificationChatView.swift */; };
 		AA000025 /* FirestoreService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000025 /* FirestoreService.swift */; };
 		AA000026 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000026 /* SettingsView.swift */; };
+		AA000027 /* WeeklyAlarmSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000027 /* WeeklyAlarmSettings.swift */; };
+		AA000028 /* AlarmSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000028 /* AlarmSettingsStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -81,6 +83,8 @@
 		AB000024 /* VerificationChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationChatView.swift; sourceTree = "<group>"; };
 		AB000025 /* FirestoreService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreService.swift; sourceTree = "<group>"; };
 		AB000026 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		AB000027 /* WeeklyAlarmSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyAlarmSettings.swift; sourceTree = "<group>"; };
+		AB000028 /* AlarmSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmSettingsStore.swift; sourceTree = "<group>"; };
 		AB000030 /* Timesaver.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Timesaver.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -150,6 +154,7 @@
 				AB000003 /* WakeSession.swift */,
 				AB000004 /* Mission.swift */,
 				AB000014 /* SleepRecord.swift */,
+				AB000027 /* WeeklyAlarmSettings.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -178,6 +183,7 @@
 				AB000015 /* SleepHistoryManager.swift */,
 				AB000007 /* ScreenBrightnessManager.swift */,
 				AB000025 /* FirestoreService.swift */,
+				AB000028 /* AlarmSettingsStore.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -292,6 +298,8 @@
 				AA000024 /* VerificationChatView.swift in Sources */,
 				AA000025 /* FirestoreService.swift in Sources */,
 				AA000026 /* SettingsView.swift in Sources */,
+				AA000027 /* WeeklyAlarmSettings.swift in Sources */,
+				AA000028 /* AlarmSettingsStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

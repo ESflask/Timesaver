@@ -91,7 +91,7 @@ struct VerificationChatView: View {
             // オフライン救済ボタン
             if scheduler.consecutiveErrors >= 3 {
                 Button {
-                    scheduler.switchToFallbackMission()
+                    scheduler.switchToFallbackMission(mode: mode)
                 } label: {
                     HStack {
                         Image(systemName: "iphone.radiowaves.left.and.right")
@@ -234,6 +234,9 @@ struct VerificationChatView: View {
 
                 // 判定結果をチェック
                 if let result = GeminiService.extractVerification(from: response), result.passed {
+                    // 画像を保存用にセット
+                    scheduler.historyManager?.imageToSave = image
+                    
                     // 認証成功 → 少し待ってから完了処理
                     try? await Task.sleep(nanoseconds: 1_500_000_000)
                     if mode == .night {

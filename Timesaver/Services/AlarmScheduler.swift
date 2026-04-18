@@ -3,6 +3,7 @@ import UserNotifications
 
 /// アラームスケジュール管理
 /// アプリ内でアラームを管理し、起きましたボタンが押されるまで繰り返す
+@MainActor
 class AlarmScheduler: ObservableObject {
     @Published var session: WakeSession?
     @Published var currentState: AppState = .idle
@@ -11,6 +12,7 @@ class AlarmScheduler: ObservableObject {
     let brightnessManager = ScreenBrightnessManager()
     let soundManager = AlarmSoundManager()
     var historyManager: SleepHistoryManager?
+    weak var settingsStore: AlarmSettingsStore?
     private let notificationCenter = UNUserNotificationCenter.current()
     private let sessionKey = "currentWakeSession"
     private var alarmTimer: Timer?
@@ -20,7 +22,8 @@ class AlarmScheduler: ObservableObject {
         case armed             // 起床アラームセット済み（就寝中）
         case ringing           // 起床アラーム発動中
         case missionActive     // 起床ミッション実行中（洗面台認証）
-        case fallbackMission   // オフライン救済ミッション（シェイク）
+        case fallbackMission   // オフライン救済ミッション（起床シェイク）
+        case nightFallbackMission // オフライン救済ミッション（就寝シェイク）
         case success           // 起床成功
         case nightArmed        // 就寝アラームセット済み
         case nightRinging      // 就寝アラーム発動中
@@ -117,6 +120,7 @@ class AlarmScheduler: ObservableObject {
             if self.currentState == .armed, now >= session.alarmStartTime {
                 DispatchQueue.main.async {
                     self.historyManager?.recordAlarmFired()
+                    self.soundManager.playAlarm()
                     self.currentState = .ringing
                 }
             }
@@ -158,6 +162,7 @@ class AlarmScheduler: ObservableObject {
         if interval <= 0 {
             // 既に時刻を過ぎている場合は即発動
             historyManager?.recordAlarmFired()
+            soundManager.playAlarm()
             currentState = .nightRinging
         } else {
             currentState = .nightArmed
@@ -165,14 +170,18 @@ class AlarmScheduler: ObservableObject {
             bedtimeTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
                 DispatchQueue.main.async {
                     self?.historyManager?.recordAlarmFired()
+                    self?.soundManager.playAlarm()
                     self?.currentState = .nightRinging
                 }
             }
         }
     }
 
+    // MARK: - ユーザーアクション
+
     /// 「Went to bed」→ 音を止めて振動に切り替え → 就寝ミッション開始
     func startNightMission() {
+        consecutiveErrors = 0
         soundManager.stopAlarm()
         soundManager.startVibration()
         historyManager?.recordActionButton()
@@ -194,8 +203,6 @@ class AlarmScheduler: ObservableObject {
         scheduleAutoWakeIfNeeded()
     }
 
-    // MARK: - ユーザーアクション
-
     /// 「Woke up」→ 音を止めて振動に切り替え → ミッション開始
     func startMission() {
         consecutiveErrors = 0
@@ -205,23 +212,18 @@ class AlarmScheduler: ObservableObject {
         currentState = .missionActive
     }
 
-    /// 「Went to bed」→ 音を止めて振動に切り替え → 就寝ミッション開始
-    func startNightMission() {
-        consecutiveErrors = 0
-        soundManager.stopAlarm()
-        soundManager.startVibration()
-        historyManager?.recordActionButton()
-        currentState = .nightMission
-    }
-
     /// 通信エラーを報告
     func reportCommunicationError() {
         consecutiveErrors += 1
     }
 
     /// オフライン救済ミッション（シェイク）に切り替え
-    func switchToFallbackMission() {
-        currentState = .fallbackMission
+    func switchToFallbackMission(mode: GeminiService.VerificationMode) {
+        if mode == .night {
+            currentState = .nightFallbackMission
+        } else {
+            currentState = .fallbackMission
+        }
         saveSession()
     }
 
@@ -245,58 +247,36 @@ class AlarmScheduler: ObservableObject {
 
     /// リセット（設定画面に戻る）
     func reset() {
+        let previousState = currentState
         cancelAllAlarms()
         session = nil
         currentState = .idle
         clearSession()
+
+        if previousState == .success || previousState == .nightSuccess {
+            scheduleAutoAlarms()
+        }
     }
 
     // MARK: - 自動アラーム
 
-    /// 自動設定の時刻から今日or明日のDateを計算して両方セット
+    /// 曜日別設定の時刻から次の就寝アラームを自動セット
     func scheduleAutoAlarms() {
-        let cal = Calendar.current
-        let now = Date()
-
-        let bedHour = UserDefaults.standard.integer(forKey: "autoBedtimeHour")
-        let bedMin  = UserDefaults.standard.integer(forKey: "autoBedtimeMinute")
-        let wakeHour = UserDefaults.standard.integer(forKey: "autoWakeHour")
-        let wakeMin  = UserDefaults.standard.integer(forKey: "autoWakeMinute")
-
-        // 就寝アラーム: 今日の時刻が過ぎていたら明日
-        var bedtime = cal.date(bySettingHour: bedHour, minute: bedMin, second: 0, of: now)!
-        if bedtime <= now {
-            bedtime = cal.date(byAdding: .day, value: 1, to: bedtime)!
-        }
-
-        // 起床アラーム: 就寝より後になるように調整
-        var wakeTime = cal.date(bySettingHour: wakeHour, minute: wakeMin, second: 0, of: now)!
-        if wakeTime <= now {
-            wakeTime = cal.date(byAdding: .day, value: 1, to: wakeTime)!
-        }
-        // 起床が就寝より前なら翌日に
-        if wakeTime <= bedtime {
-            wakeTime = cal.date(byAdding: .day, value: 1, to: wakeTime)!
-        }
-
-        // まず就寝アラームをセット
+        guard let settings = settingsStore?.settings else { return }
+        guard let bedtime = settings.nextScheduledDate(for: .bedtime, after: Date()) else { return }
         setBedtimeAlarm(bedtime)
-
-        // 起床アラームは就寝成功後にセットするため保存しておく
-        UserDefaults.standard.set(wakeTime.timeIntervalSince1970, forKey: "pendingAutoWakeTime")
     }
 
-    /// 就寝成功後に起床アラームを自動セット（自動モード時のみ）
+    /// 就寝成功後に起床アラームを自動セット
     func scheduleAutoWakeIfNeeded() {
-        guard UserDefaults.standard.bool(forKey: "autoAlarmEnabled"),
-              let timestamp = UserDefaults.standard.object(forKey: "pendingAutoWakeTime") as? Double else { return }
-
-        let wakeTime = Date(timeIntervalSince1970: timestamp)
-        UserDefaults.standard.removeObject(forKey: "pendingAutoWakeTime")
+        guard let settings = settingsStore?.settings,
+              let wakeTime = settings.nextScheduledDate(for: .wake, after: Date()) else { return }
 
         // 少し待ってからセット（就寝成功画面を表示する余裕）
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            self?.setAlarm(wakeTime)
+            if self?.currentState == .nightSuccess {
+                self?.setAlarm(wakeTime)
+            }
         }
     }
 

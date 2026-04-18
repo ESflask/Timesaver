@@ -171,6 +171,31 @@ class GeminiService {
     {"result": false, "reason": "20文字以内の日本語で理由"}
     """
 
+    // MARK: - 画像リサイズ
+
+    /// 画像をFull HD（長辺1920px）以内にリサイズ
+    /// 既にFull HD以下の場合はそのまま返す
+    private static func resizeToFullHD(_ image: UIImage) -> UIImage {
+        let maxDimension: CGFloat = 1920
+        let size = image.size
+
+        // 長辺がFull HD以下ならそのまま
+        guard max(size.width, size.height) > maxDimension else { return image }
+
+        let scale: CGFloat
+        if size.width > size.height {
+            scale = maxDimension / size.width
+        } else {
+            scale = maxDimension / size.height
+        }
+
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+    }
+
     // MARK: - API通信
 
     /// 判定結果
@@ -180,6 +205,7 @@ class GeminiService {
     }
 
     /// チャット形式で送信（モード + テキスト + 任意の画像）
+    /// 画像は送信前にFull HD（1920px）に自動リサイズされる
     static func sendChat(
         mode: VerificationMode,
         message: String?,
@@ -188,26 +214,30 @@ class GeminiService {
     ) async throws -> String {
         var parts: [[String: Any]] = []
 
-        // 参照写真がある場合は先に添付
-        if let ref = referenceImage,
-           let refData = ref.jpegData(compressionQuality: 0.8) {
-            parts.append([
-                "inline_data": [
-                    "mime_type": "image/jpeg",
-                    "data": refData.base64EncodedString()
-                ]
-            ])
+        // 参照写真がある場合は先に添付（Full HDにリサイズ）
+        if let ref = referenceImage {
+            let resized = resizeToFullHD(ref)
+            if let refData = resized.jpegData(compressionQuality: 0.8) {
+                parts.append([
+                    "inline_data": [
+                        "mime_type": "image/jpeg",
+                        "data": refData.base64EncodedString()
+                    ]
+                ])
+            }
         }
 
-        // ユーザーが送った画像
-        if let img = image,
-           let imgData = img.jpegData(compressionQuality: 0.8) {
-            parts.append([
-                "inline_data": [
-                    "mime_type": "image/jpeg",
-                    "data": imgData.base64EncodedString()
-                ]
-            ])
+        // ユーザーが送った画像（Full HDにリサイズ）
+        if let img = image {
+            let resized = resizeToFullHD(img)
+            if let imgData = resized.jpegData(compressionQuality: 0.8) {
+                parts.append([
+                    "inline_data": [
+                        "mime_type": "image/jpeg",
+                        "data": imgData.base64EncodedString()
+                    ]
+                ])
+            }
         }
 
         // モードに応じたプロンプト + ユーザーメッセージ

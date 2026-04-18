@@ -1,85 +1,82 @@
 import SwiftUI
 
-/// 設定画面: 手動/自動アラーム切り替え + 自動時の時刻設定
+/// 設定画面: 自動モードの切り替えと同期状態を管理
 struct SettingsView: View {
-    // 自動設定ON/OFF
-    @AppStorage("autoAlarmEnabled") private var autoAlarmEnabled = false
-
-    // 自動設定用の時刻（時・分をUserDefaultsに保存）
-    @AppStorage("autoBedtimeHour") private var autoBedtimeHour = 23
-    @AppStorage("autoBedtimeMinute") private var autoBedtimeMinute = 0
-    @AppStorage("autoWakeHour") private var autoWakeHour = 7
-    @AppStorage("autoWakeMinute") private var autoWakeMinute = 0
-
-    // DatePicker用のローカル状態
-    @State private var bedtimeDate: Date = Date()
-    @State private var wakeDate: Date = Date()
+    @EnvironmentObject var settingsStore: AlarmSettingsStore
 
     var body: some View {
         NavigationStack {
             Form {
-                // MARK: - アラームモード選択
                 Section {
-                    Toggle("自動アラーム", isOn: $autoAlarmEnabled.animation())
+                    Toggle("自動アラーム", isOn: Binding(
+                        get: { settingsStore.settings.autoEnabled },
+                        set: { newValue in
+                            settingsStore.setAutoEnabled(newValue)
+                        }
+                    ).animation())
+
+                    if !settingsStore.settings.autoEnabled {
+                        Toggle("就寝アラーム終了後に起床を自動セット", isOn: Binding(
+                            get: { settingsStore.settings.autoSetWakeAlarmAfterBedtime },
+                            set: { newValue in
+                                settingsStore.setAutoSetWakeAlarmAfterBedtime(newValue)
+                            }
+                        ))
+                        .font(.subheadline)
+                    }
                 } header: {
                     Text("アラーム設定モード")
                 } footer: {
-                    if autoAlarmEnabled {
-                        Text("毎日同じ時刻に自動でアラームがセットされます。Nightタブを開くだけで就寝→起床まで自動管理します。")
+                    if settingsStore.settings.autoEnabled {
+                        Text("曜日ごとの時刻編集は Morning / Night タブで行います。Night タブから次回の自動就寝アラームをセットできます。")
                     } else {
-                        Text("Night・Morningタブから毎回手動でアラームをセットします。")
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("手動モードでは従来どおり、その場で時刻を選んでアラームをセットします。")
+                            if settingsStore.settings.autoSetWakeAlarmAfterBedtime {
+                                Text("※「自動セット」がONの場合、就寝ミッション成功時に、現在の曜日設定に基づいた起床アラームが自動的に予約されます。")
+                                    .foregroundColor(.orange)
+                            }
+                        }
                     }
                 }
 
-                // MARK: - 自動設定の時刻
-                if autoAlarmEnabled {
-                    Section {
-                        DatePicker("就寝時刻", selection: $bedtimeDate, displayedComponents: .hourAndMinute)
-                            .onChange(of: bedtimeDate) {
-                                let comps = Calendar.current.dateComponents([.hour, .minute], from: bedtimeDate)
-                                autoBedtimeHour = comps.hour ?? 23
-                                autoBedtimeMinute = comps.minute ?? 0
-                            }
-                    } header: {
-                        HStack {
-                            Image(systemName: "moon.fill")
-                                .foregroundColor(.indigo)
-                            Text("就寝")
-                        }
-                    } footer: {
-                        Text("この時刻に就寝アラームが鳴ります")
+                Section {
+                    HStack {
+                        Label("次回の起床", systemImage: "sun.max.fill")
+                            .foregroundColor(.orange)
+                        Spacer()
+                        Text(settingsStore.nextAlarmSummary(for: .wake))
+                            .foregroundColor(.secondary)
                     }
 
+                    HStack {
+                        Label("次回の就寝", systemImage: "moon.fill")
+                            .foregroundColor(.indigo)
+                        Spacer()
+                        Text(settingsStore.nextAlarmSummary(for: .bedtime))
+                            .foregroundColor(.secondary)
+                    }
+                } header: {
+                    Text("現在の曜日設定")
+                } footer: {
+                    Text("曜日ごとの時刻を変更すると、自動的に Firebase と同期されます。")
+                }
+
+                if settingsStore.isSyncing {
                     Section {
-                        DatePicker("起床時刻", selection: $wakeDate, displayedComponents: .hourAndMinute)
-                            .onChange(of: wakeDate) {
-                                let comps = Calendar.current.dateComponents([.hour, .minute], from: wakeDate)
-                                autoWakeHour = comps.hour ?? 7
-                                autoWakeMinute = comps.minute ?? 0
-                            }
-                    } header: {
                         HStack {
-                            Image(systemName: "sun.max.fill")
-                                .foregroundColor(.orange)
-                            Text("起床")
+                            ProgressView()
+                            Text("同期中...")
+                                .foregroundColor(.secondary)
                         }
-                    } footer: {
-                        Text("就寝認証クリア後、この時刻に起床アラームが自動セットされます")
                     }
                 }
             }
-            .navigationTitle("設定")
+            .navigationTitle("時間設定")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                // 保存済みの時刻をDatePickerに反映
-                let cal = Calendar.current
-                bedtimeDate = cal.date(bySettingHour: autoBedtimeHour, minute: autoBedtimeMinute, second: 0, of: Date()) ?? Date()
-                wakeDate = cal.date(bySettingHour: autoWakeHour, minute: autoWakeMinute, second: 0, of: Date()) ?? Date()
+            .task {
+                await settingsStore.fetchFromFirestore()
             }
         }
     }
-}
-
-#Preview {
-    SettingsView()
 }

@@ -1,11 +1,14 @@
 import Foundation
+import UIKit
 
 /// 睡眠・起床記録の管理
-/// Firestore をプライマリ、ローカルJSONをキャッシュとして使用
 class SleepHistoryManager: ObservableObject {
     @Published var records: [SleepRecord] = []
     @Published var currentRecord: SleepRecord?
     @Published var isLoading = false
+    
+    // 認証成功時に保存する画像
+    var imageToSave: UIImage?
 
     private let fileName = "sleep_history.json"
     private let firestore = FirestoreService.shared
@@ -21,7 +24,6 @@ class SleepHistoryManager: ObservableObject {
 
     // MARK: - Firestore同期
 
-    /// アプリ起動時にFirestoreからデータを取得
     func fetchFromFirestore() {
         guard !isLoading else { return }
         isLoading = true
@@ -43,11 +45,11 @@ class SleepHistoryManager: ObservableObject {
         }
     }
 
-    /// レコードをFirestoreに保存
-    private func saveToFirestore(_ record: SleepRecord) {
+    /// レコードをFirestoreに保存（画像があればそれも送信）
+    private func saveToFirestore(_ record: SleepRecord, image: UIImage?) {
         Task {
             do {
-                try await firestore.save(record)
+                try await firestore.save(record, image: image)
             } catch {
                 print("Firestore保存エラー: \(error.localizedDescription)")
             }
@@ -56,22 +58,20 @@ class SleepHistoryManager: ObservableObject {
 
     // MARK: - 記録操作
 
-    /// Morning: アラームセット時にレコード開始
     func startMorningRecord(alarmTime: Date) {
         currentRecord = SleepRecord(mode: .morning, alarmSetTime: alarmTime)
+        imageToSave = nil
     }
 
-    /// Night: アラームセット時にレコード開始
     func startNightRecord(alarmTime: Date) {
         currentRecord = SleepRecord(mode: .night, alarmSetTime: alarmTime)
+        imageToSave = nil
     }
 
-    /// アラームが鳴り始めた時刻を記録
     func recordAlarmFired() {
         currentRecord?.alarmFiredTime = Date()
     }
 
-    /// 「起きた」or「布団に入った」ボタン押下時刻を記録
     func recordActionButton() {
         currentRecord?.actionButtonTime = Date()
     }
@@ -82,17 +82,19 @@ class SleepHistoryManager: ObservableObject {
         record.missionCompletedTime = Date()
         records.insert(record, at: 0)
         currentRecord = nil
+        
+        let image = imageToSave
+        imageToSave = nil
+        
         saveLocal()
-        saveToFirestore(record)
+        saveToFirestore(record, image: image)
     }
 
-    /// 記録を削除
     func deleteRecord(at offsets: IndexSet) {
         records.remove(atOffsets: offsets)
         saveLocal()
     }
 
-    /// 全記録を削除
     func clearAll() {
         records.removeAll()
         currentRecord = nil
