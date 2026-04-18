@@ -71,6 +71,33 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                Section {
+                    if #available(iOS 26.0, *) {
+                        Button {
+                            settingsStore.testAlarmSound()
+                        } label: {
+                            Text("アラーム音を試用")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.glass)
+                        .tint(.orange)
+                    } else {
+                        Button {
+                            settingsStore.testAlarmSound()
+                        } label: {
+                            Text("アラーム音を試用")
+                        }
+                        .buttonStyle(MaterialBounceButtonStyle(baseColor: .orange))
+                    }
+                } header: {
+                    Text("デバッグ・テスト")
+                } footer: {
+                    Text("ボタンを押すと10秒後にアラーム音が鳴ります。")
+                }
             }
             .navigationTitle("時間設定")
             .navigationBarTitleDisplayMode(.inline)

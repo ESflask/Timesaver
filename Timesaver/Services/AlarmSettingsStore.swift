@@ -40,6 +40,14 @@ final class AlarmSettingsStore: ObservableObject {
         persistAndSync()
     }
 
+    /// デバッグ用: 10秒後にアラームを鳴らす
+    func testAlarmSound() {
+        let testDate = Date().addingTimeInterval(10)
+        // ContentView で scheduler が EnvironmentObject として渡されているので、
+        // 実際のアラーム制御は AlarmScheduler 側で行う
+        NotificationCenter.default.post(name: NSNotification.Name("TestAlarmSound"), object: testDate)
+    }
+
     func updateWakeTime(for weekday: WeekdayKey, date: Date) {
         let components = Calendar.current.dateComponents([.hour, .minute], from: date)
         settings.updateWakeTime(

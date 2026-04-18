@@ -34,6 +34,15 @@ class AlarmScheduler: ObservableObject {
     init() {
         loadSession()
         requestNotificationPermission()
+        setupTestNotificationObserver()
+    }
+
+    private func setupTestNotificationObserver() {
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("TestAlarmSound"), object: nil, queue: .main) { [weak self] notification in
+            if let date = notification.object as? Date {
+                self?.setAlarm(date)
+            }
+        }
     }
 
     // MARK: - 通知権限
@@ -253,30 +262,28 @@ class AlarmScheduler: ObservableObject {
         currentState = .idle
         clearSession()
 
-        if previousState == .success || previousState == .nightSuccess {
+        if previousState == .success, settingsStore?.settings.autoEnabled == true {
             scheduleAutoAlarms()
         }
     }
 
     // MARK: - 自動アラーム
 
-    /// 曜日別設定の時刻から次の就寝アラームを自動セット
+    /// 自動設定の時刻から今日or明日のDateを計算して両方セット
     func scheduleAutoAlarms() {
-        guard let settings = settingsStore?.settings else { return }
+        guard let settings = settingsStore?.settings, settings.autoEnabled else { return }
         guard let bedtime = settings.nextScheduledDate(for: .bedtime, after: Date()) else { return }
         setBedtimeAlarm(bedtime)
     }
 
-    /// 就寝成功後に起床アラームを自動セット
+    /// 就寝成功後に起床アラームを自動セット（自動モード時のみ）
     func scheduleAutoWakeIfNeeded() {
-        guard let settings = settingsStore?.settings,
-              let wakeTime = settings.nextScheduledDate(for: .wake, after: Date()) else { return }
+        guard let settings = settingsStore?.settings, settings.autoEnabled else { return }
+        guard let wakeTime = settings.nextScheduledDate(for: .wake, after: Date()) else { return }
 
         // 少し待ってからセット（就寝成功画面を表示する余裕）
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            if self?.currentState == .nightSuccess {
-                self?.setAlarm(wakeTime)
-            }
+            self?.setAlarm(wakeTime)
         }
     }
 
