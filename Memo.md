@@ -63,3 +63,6 @@
     - `WeeklyAlarmSettings` に `autoSetWakeAlarmAfterBedtime` プロパティを追加し、Firestore との同期に対応。
     - `SettingsView` に上記設定を有効化するトグルを追加（自動アラームがオフの時のみ表示）。
     - `AlarmScheduler` のロジックを更新し、設定が有効な場合に就寝成功後、曜日設定に基づいた起床時刻を自動計算してセットするように変更。
+- ## 4月19日 (日)
+- **課題**:
+    - alarm_sound.wavというアラーム音の有音音声ファイルがproject.pbxprojに登録されておらず、iOSで試しにデバッグモードを使用したが設定時刻になってもアラーム音は鳴らなかった(ただし画面は正常にgeminiAPIとのチャット画面へとつながった)

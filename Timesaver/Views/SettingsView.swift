@@ -72,6 +72,16 @@ struct SettingsView: View {
                     }
                 }
 
+                if settingsStore.settings.autoEnabled {
+                    Section {
+                        VolumeGuideView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    } header: {
+                        Text("音量の確認")
+                    }
+                }
+
                 Section {
                     if #available(iOS 26.0, *) {
                         Button {

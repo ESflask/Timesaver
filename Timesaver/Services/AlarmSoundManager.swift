@@ -3,7 +3,7 @@ import MediaPlayer
 import UIKit
 
 /// アラーム音の再生・停止・振動切り替えを管理
-class AlarmSoundManager: ObservableObject {
+class AlarmSoundManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private var audioPlayer: AVAudioPlayer?
     private var silencePlayer: AVAudioPlayer?
     private var vibrationTimer: Timer?
@@ -12,9 +12,13 @@ class AlarmSoundManager: ObservableObject {
     @Published var isVibrating = false
     @Published var isSilencePlaying = false
 
+    /// 無音ループの各再生完了時に呼ばれるコールバック（時刻チェック用）
+    var onSilenceLoopTick: (() -> Void)?
+
     // MARK: - 無音ループ再生（バックグラウンド維持用）
 
-    /// 無音ファイルをループ再生してアプリのサスペンドを防ぐ
+    /// 無音ファイルを手動ループ再生してアプリのサスペンドを防ぐ
+    /// 再生完了のたびに onSilenceLoopTick を呼び出し、時刻チェックを可能にする
     func startSilenceLoop() {
         guard !isSilencePlaying else { return }
         configureAudioSession()
@@ -26,15 +30,28 @@ class AlarmSoundManager: ObservableObject {
 
         do {
             silencePlayer = try AVAudioPlayer(contentsOf: url)
-            silencePlayer?.numberOfLoops = -1  // 無限ループ
-            // 音源自体が無音なので、プレイヤー音量は下げずに再生状態を維持する
-            silencePlayer?.volume = 1.0
+            silencePlayer?.numberOfLoops = 0   // 手動ループ（delegateで再開）
+            silencePlayer?.volume = 1.0        // 音源自体が無音なので音量は維持
+            silencePlayer?.delegate = self
             silencePlayer?.prepareToPlay()
             isSilencePlaying = silencePlayer?.play() == true
             disableRemoteControls()
         } catch {
             print("無音ループ再生に失敗: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - AVAudioPlayerDelegate
+
+    /// 無音ファイル再生完了時: 時刻チェックコールバックを実行し、再度再生
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        guard isSilencePlaying else { return }
+        // 時刻チェックコールバック（AlarmScheduler が設定時刻到達を検知）
+        DispatchQueue.main.async { [weak self] in
+            self?.onSilenceLoopTick?()
+        }
+        // 無音ファイルを再度再生
+        player.play()
     }
 
     /// ロック画面のメディアコントロールを無効化し、停止されても自動再開
@@ -156,14 +173,17 @@ class AlarmSoundManager: ObservableObject {
     // MARK: - 振動
 
     /// iPhoneの振動をループ再生（覚醒アクション完了まで止まらない）
+    /// RunLoop の .common モードに登録し、スクロール中でも振動が途切れないようにする
     func startVibration() {
         guard !isVibrating else { return }
         isVibrating = true
         triggerVibration()
-        vibrationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self, self.isVibrating else { return }
             self.triggerVibration()
         }
+        RunLoop.main.add(timer, forMode: .common)
+        vibrationTimer = timer
     }
 
     /// 振動を停止
@@ -202,7 +222,7 @@ class AlarmSoundManager: ObservableObject {
         #endif
     }
 
-    // MARK: - システムサウンド代替
+    // MARK: - フォールバックアラーム音
 
     /// カスタム音声ファイルがない場合でもバックグラウンド再生を維持できるフォールバック
     private func playGeneratedAlarm() {

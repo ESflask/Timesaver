@@ -8,6 +8,7 @@ class AlarmScheduler: ObservableObject {
     @Published var session: WakeSession?
     @Published var currentState: AppState = .idle
     @Published var consecutiveErrors: Int = 0 // 通信エラーの連続回数
+    @Published var isDebugMode: Bool = false  // デバッグ（アラーム試用）モード
 
     let brightnessManager = ScreenBrightnessManager()
     let soundManager = AlarmSoundManager()
@@ -15,8 +16,8 @@ class AlarmScheduler: ObservableObject {
     weak var settingsStore: AlarmSettingsStore?
     private let notificationCenter = UNUserNotificationCenter.current()
     private let sessionKey = "currentWakeSession"
-    private var alarmTimer: Timer?
-    private var alarmFireTimer: Timer?
+    /// 就寝アラームの目標時刻（onSilenceLoopTick で監視）
+    private var pendingBedtime: Date?
 
     enum AppState {
         case idle              // 待機中
@@ -41,6 +42,7 @@ class AlarmScheduler: ObservableObject {
     private func setupTestNotificationObserver() {
         NotificationCenter.default.addObserver(forName: NSNotification.Name("TestAlarmSound"), object: nil, queue: .main) { [weak self] notification in
             if let date = notification.object as? Date {
+                self?.isDebugMode = true
                 self?.setAlarm(date)
             }
         }
@@ -68,21 +70,18 @@ class AlarmScheduler: ObservableObject {
         // レコード開始
         historyManager?.startMorningRecord(alarmTime: startTime)
 
-        // 無音ループ開始（バックグラウンド維持）
+        // 無音ループ開始（バックグラウンド維持 + 毎秒の時刻チェック）
+        setupSilenceLoopCallback()
         soundManager.startSilenceLoop()
 
         // 直近のバックアップ通知をスケジュール（最大64件 = iOSの上限）
         scheduleBackupNotifications(from: startTime)
 
-        currentState = .armed
-
-        // ループ監視タイマー開始
-        startMonitoringTimer()
-
         if startTime <= Date() {
+            // 既に時刻を過ぎている場合は即発動
             triggerMorningAlarmIfNeeded()
         } else {
-            scheduleMorningAlarmFireTimer(for: startTime)
+            currentState = .armed
         }
     }
 
@@ -112,55 +111,39 @@ class AlarmScheduler: ObservableObject {
         }
     }
 
-    // MARK: - ループ監視タイマー
+    // MARK: - 無音ループコールバック（スリープ中でも動作する時刻チェック）
 
-    /// 60秒ごとに状態をチェックし、アラーム発動・通知補充を行う
-    private func startMonitoringTimer() {
-        alarmTimer?.invalidate()
-
-        let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.handleMonitoringTimerTick()
-            }
+    /// 無音ファイル再生完了のたびに呼ばれる時刻チェック処理
+    /// silence.wav（1秒）の再生完了 → コールバック → 再生再開 のループで
+    /// スリープ中でもバックグラウンドで確実に動作する
+    private func setupSilenceLoopCallback() {
+        soundManager.onSilenceLoopTick = { [weak self] in
+            self?.checkAlarmTime()
         }
-        alarmTimer = timer
-        RunLoop.main.add(timer, forMode: .common)
     }
 
-    private func handleMonitoringTimerTick() {
-        guard let session,
-              currentState != .success,
-              currentState != .missionActive,
-              currentState != .nightArmed,
-              currentState != .nightRinging,
-              currentState != .nightMission,
-              currentState != .nightSuccess else { return }
-
+    /// 毎秒の時刻チェック: 起床・就寝アラームの発動判定
+    private func checkAlarmTime() {
         let now = Date()
 
-        // ringing 状態への遷移（アラーム開始時刻を過ぎたら）
-        if currentState == .armed, now >= session.alarmStartTime {
+        // 起床アラーム: armed → ringing
+        if currentState == .armed, let session = session, now >= session.alarmStartTime {
             triggerMorningAlarmIfNeeded(now: now)
         }
 
-        // ringing中は通知を補充し続ける（起きるまで無制限）
-        if currentState == .ringing {
-            scheduleBackupNotifications(from: now.addingTimeInterval(60))
+        // 就寝アラーム: nightArmed → nightRinging
+        if currentState == .nightArmed, let bedtime = pendingBedtime, now >= bedtime {
+            pendingBedtime = nil
+            triggerNightAlarmIfNeeded()
         }
-    }
 
-    /// 起床アラームを予定時刻に発火させる単発タイマー
-    private func scheduleMorningAlarmFireTimer(for startTime: Date) {
-        alarmFireTimer?.invalidate()
-
-        let interval = max(startTime.timeIntervalSinceNow, 0.1)
-        let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                self?.triggerMorningAlarmIfNeeded()
+        // ringing中は通知を補充（60秒おきに制限）
+        if currentState == .ringing, let session = session {
+            let elapsed = now.timeIntervalSince(session.alarmStartTime)
+            if Int(elapsed) % 60 == 0 {
+                scheduleBackupNotifications(from: now.addingTimeInterval(60))
             }
         }
-        alarmFireTimer = timer
-        RunLoop.main.add(timer, forMode: .common)
     }
 
     /// 起床アラームの状態と音声を同時に発火・復旧する
@@ -197,8 +180,8 @@ class AlarmScheduler: ObservableObject {
                     brightnessManager.maximizeBrightness()
                 }
             } else if currentState == .armed {
+                setupSilenceLoopCallback()
                 soundManager.startSilenceLoop()
-                scheduleMorningAlarmFireTimer(for: session.alarmStartTime)
             }
         }
 
@@ -211,8 +194,6 @@ class AlarmScheduler: ObservableObject {
     }
 
     // MARK: - 就寝アラーム
-
-    private var bedtimeTimer: Timer?
 
     /// 就寝時刻にアラームをセットし、時刻到来でnightRinging状態に遷移
     func setBedtimeAlarm(_ bedtime: Date) {
@@ -232,24 +213,17 @@ class AlarmScheduler: ObservableObject {
         let request = UNNotificationRequest(identifier: "bedtime-alarm", content: content, trigger: trigger)
         notificationCenter.add(request)
 
-        // 無音ループ開始（バックグラウンド維持）
+        // 無音ループ開始（バックグラウンド維持 + 毎秒の時刻チェック）
+        setupSilenceLoopCallback()
         soundManager.startSilenceLoop()
 
-        // アプリ内タイマーで状態遷移
-        let interval = bedtime.timeIntervalSinceNow
-        if interval <= 0 {
+        if bedtime.timeIntervalSinceNow <= 0 {
             // 既に時刻を過ぎている場合は即発動
             triggerNightAlarmIfNeeded()
         } else {
+            // pendingBedtime をセットし、checkAlarmTime() で監視
+            pendingBedtime = bedtime
             currentState = .nightArmed
-            bedtimeTimer?.invalidate()
-            let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
-                Task { @MainActor in
-                    self?.triggerNightAlarmIfNeeded()
-                }
-            }
-            bedtimeTimer = timer
-            RunLoop.main.add(timer, forMode: .common)
         }
     }
 
@@ -286,8 +260,7 @@ class AlarmScheduler: ObservableObject {
         historyManager?.recordMissionCompleted()
         currentState = .nightSuccess
         // 就寝アラーム関連のみキャンセル
-        bedtimeTimer?.invalidate()
-        bedtimeTimer = nil
+        pendingBedtime = nil
         notificationCenter.removePendingNotificationRequests(withIdentifiers: ["bedtime-alarm"])
 
         // 自動モード: 就寝成功後に起床アラームを自動セット
@@ -332,10 +305,8 @@ class AlarmScheduler: ObservableObject {
 
     /// 全アラームをキャンセル
     func cancelAllAlarms() {
-        alarmTimer?.invalidate()
-        alarmTimer = nil
-        alarmFireTimer?.invalidate()
-        alarmFireTimer = nil
+        pendingBedtime = nil
+        soundManager.onSilenceLoopTick = nil
         soundManager.stopAlarm()
         soundManager.stopSilenceLoop()
         notificationCenter.removeAllPendingNotificationRequests()
@@ -344,6 +315,7 @@ class AlarmScheduler: ObservableObject {
     /// リセット（設定画面に戻る）
     func reset() {
         let previousState = currentState
+        isDebugMode = false
         cancelAllAlarms()
         session = nil
         currentState = .idle
@@ -389,14 +361,13 @@ class AlarmScheduler: ObservableObject {
         if saved.isActive {
             let now = Date()
             currentState = now >= saved.alarmStartTime ? .ringing : .armed
+            // 無音ループのコールバックをセットアップ（アプリ再起動時）
+            setupSilenceLoopCallback()
             soundManager.startSilenceLoop()
-            startMonitoringTimer()
-            // アプリ再起動時に通知を補充
+            // アプリ再起動時に通知を補充・アラーム音を再開
             if now >= saved.alarmStartTime {
                 soundManager.playAlarm()
                 scheduleBackupNotifications(from: now.addingTimeInterval(60))
-            } else {
-                scheduleMorningAlarmFireTimer(for: saved.alarmStartTime)
             }
         }
     }

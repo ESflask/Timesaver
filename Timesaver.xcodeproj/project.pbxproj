@@ -33,6 +33,7 @@
 		9607DB3A2F80ED6500D8CB80 /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = 9607DB392F80ED6500D8CB80 /* FirebaseRemoteConfig */; };
 		9607DB3C2F80ED6500D8CB80 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 9607DB3B2F80ED6500D8CB80 /* FirebaseStorage */; };
 		9607DB3E2F80ED6500D8CB80 /* FirebaseStorageCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = 9607DB3D2F80ED6500D8CB80 /* FirebaseStorageCombine-Community */; };
+		96700BFD2F9443E200AF9E14 /* alarm_sound.wav in Resources */ = {isa = PBXBuildFile; fileRef = 96700BFC2F9443E200AF9E14 /* alarm_sound.wav */; };
 		AA000001 /* TimesaverApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000001 /* TimesaverApp.swift */; };
 		AA000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000002 /* ContentView.swift */; };
 		AA000003 /* WakeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000003 /* WakeSession.swift */; };
@@ -61,6 +62,7 @@
 /* Begin PBXFileReference section */
 		9607DB0A2F80E1F800D8CB80 /* silence.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = silence.wav; sourceTree = "<group>"; };
 		9607DB0C2F80ED0900D8CB80 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		96700BFC2F9443E200AF9E14 /* alarm_sound.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = alarm_sound.wav; sourceTree = "<group>"; };
 		AB000001 /* TimesaverApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimesaverApp.swift; sourceTree = "<group>"; };
 		AB000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AB000003 /* WakeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakeSession.swift; sourceTree = "<group>"; };
@@ -143,6 +145,7 @@
 				AB000023 /* Secrets.plist */,
 				AD000007 /* Preview Content */,
 				9607DB0A2F80E1F800D8CB80 /* silence.wav */,
+				96700BFC2F9443E200AF9E14 /* alarm_sound.wav */,
 				9607DB0C2F80ED0900D8CB80 /* GoogleService-Info.plist */,
 			);
 			path = Timesaver;
@@ -269,6 +272,7 @@
 				AA000021 /* Preview Assets.xcassets in Resources */,
 				9607DB0D2F80ED0900D8CB80 /* GoogleService-Info.plist in Resources */,
 				9607DB0B2F80E1F800D8CB80 /* silence.wav in Resources */,
+				96700BFD2F9443E200AF9E14 /* alarm_sound.wav in Resources */,
 				AA000022 /* Secrets.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

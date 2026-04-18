@@ -131,6 +131,36 @@ struct VerificationChatView: View {
             Text(GeminiService.headerTitle(for: mode))
                 .font(.headline)
             Spacer()
+
+            // デバッグモード時のみ停止ボタンを表示
+            if scheduler.isDebugMode {
+                if #available(iOS 26.0, *) {
+                    Button {
+                        scheduler.soundManager.stopVibration()
+                        scheduler.reset()
+                    } label: {
+                        Text("停止")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                    }
+                    .buttonStyle(.glass)
+                    .tint(.red)
+                } else {
+                    Button {
+                        scheduler.soundManager.stopVibration()
+                        scheduler.reset()
+                    } label: {
+                        Text("停止")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.red.opacity(0.8))
+                            .foregroundColor(.white)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
         }
         .padding()
         .background(.ultraThinMaterial)

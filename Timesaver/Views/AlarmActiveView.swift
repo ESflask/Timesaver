@@ -42,24 +42,45 @@ struct AlarmActiveView: View {
                 Spacer()
 
                 // ボタン — Night: "Went to bed" / Morning: "Woke up"
-                Button {
-                    if mode == .night {
-                        scheduler.startNightMission()
-                    } else {
-                        scheduler.startMission()
+                if #available(iOS 26.0, *) {
+                    Button {
+                        if mode == .night {
+                            scheduler.startNightMission()
+                        } else {
+                            scheduler.startMission()
+                        }
+                    } label: {
+                        Text(mode == .night ? "Went to bed" : "Woke up")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(mode == .night ? .white : .red)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 20)
                     }
-                } label: {
-                    Text(mode == .night ? "Went to bed" : "Woke up")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
-                        .background(.ultraThinMaterial)
-                        .cornerRadius(20)
+                    .buttonStyle(.glass)
+                    .tint(mode == .night ? .indigo : .blue)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 50)
+                } else {
+                    Button {
+                        if mode == .night {
+                            scheduler.startNightMission()
+                        } else {
+                            scheduler.startMission()
+                        }
+                    } label: {
+                        Text(mode == .night ? "Went to bed" : "Woke up")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(mode == .night ? .white : .red)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 20)
+                            .background(mode == .night ? Color.indigo.opacity(0.8) : Color.blue.opacity(0.8))
+                            .cornerRadius(20)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 50)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 50)
             }
         }
         .onAppear {

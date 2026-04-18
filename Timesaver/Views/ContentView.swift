@@ -695,6 +695,28 @@ struct DayTimeEditorSheet: View {
     }
 }
 
+// MARK: - 音量ガイド（共通コンポーネント）
+
+/// 音量を最低1段階にするよう促すガイド表示
+struct VolumeGuideView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image("volume_guide")
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: 200)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(radius: 4)
+
+            Text("上の画像のように、iPhoneの音量ボタンを\n無音状態から一回だけ押した状態にしてください")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 24)
+    }
+}
+
 // MARK: - アラームセット済み画面（就寝中）
 
 struct ArmedView: View {
@@ -729,6 +751,8 @@ struct ArmedView: View {
                         .foregroundColor(.secondary)
                 }
             }
+
+            VolumeGuideView()
 
             Spacer()
 
@@ -791,6 +815,8 @@ struct NightArmedView: View {
             Text("時間になったらお知らせします")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
+
+            VolumeGuideView()
 
             Spacer()
 
