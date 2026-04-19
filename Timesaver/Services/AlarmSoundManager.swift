@@ -127,6 +127,8 @@ class AlarmSoundManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
         // オーディオセッションを設定（サイレントモードでも鳴るように）
         configureAudioSession()
+        // システム音量をアラーム用に設定
+        setSystemVolume(to: 0.33)
         // ロック画面のNow Playingにタップを促す情報を表示
         updateNowPlayingForAlarm()
 
@@ -134,7 +136,7 @@ class AlarmSoundManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             do {
                 audioPlayer = try AVAudioPlayer(contentsOf: url)
                 audioPlayer?.numberOfLoops = -1  // 無限ループ
-                audioPlayer?.volume = 0.8        // サイレントモードでも気づける音量
+                audioPlayer?.volume = 1.0        // 最大音量
                 audioPlayer?.prepareToPlay()
                 isPlaying = audioPlayer?.play() == true
                 if !isPlaying {
@@ -205,6 +207,26 @@ class AlarmSoundManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             generator.impactOccurred()
         }
+    }
+
+    // MARK: - システム音量制御
+
+    /// アラーム発動時にシステム音量を指定レベルに設定（0.0〜1.0）
+    private func setSystemVolume(to level: Float) {
+        #if os(iOS)
+        let volumeView = MPVolumeView(frame: CGRect(x: -1000, y: -1000, width: 1, height: 1))
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first(where: { $0.isKeyWindow }) else { return }
+        window.addSubview(volumeView)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            if let slider = volumeView.subviews.first(where: { $0 is UISlider }) as? UISlider {
+                slider.value = level
+            }
+            volumeView.removeFromSuperview()
+        }
+        #endif
     }
 
     // MARK: - オーディオセッション設定
