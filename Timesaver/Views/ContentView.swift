@@ -120,13 +120,11 @@ struct NightAlarmView: View {
 
     var body: some View {
         NavigationStack {
+            Group {
             if autoAlarmEnabled {
                 ScrollView {
                     VStack(spacing: 20) {
-                        screenHeader(
-                            title: "Night",
-                            subtitle: "曜日ごとの就寝時刻を管理"
-                        )
+                        screenSubtitle("曜日ごとの就寝時刻を管理")
 
                         AutoAlarmSummaryCard(
                             title: "次回の就寝アラーム",
@@ -208,10 +206,10 @@ struct NightAlarmView: View {
                 VStack(spacing: 30) {
                     Spacer()
 
-                    screenHeader(
-                        title: "Night",
-                        subtitle: "おやすみアラーム"
-                    )
+                    screenSubtitle("おやすみアラーム")
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 20)
 
                     Spacer()
 
@@ -264,6 +262,8 @@ struct NightAlarmView: View {
                     }
                 }
             }
+            }
+            .navigationTitle("Night")
         }
     }
 
@@ -304,13 +304,11 @@ struct MorningAlarmView: View {
 
     var body: some View {
         NavigationStack {
+            Group {
             if autoAlarmEnabled {
                 ScrollView {
                     VStack(spacing: 20) {
-                        screenHeader(
-                            title: "Morning",
-                            subtitle: "曜日ごとの起床時刻を管理"
-                        )
+                        screenSubtitle("曜日ごとの起床時刻を管理")
 
                         AutoAlarmSummaryCard(
                             title: "次回の起床アラーム",
@@ -371,10 +369,10 @@ struct MorningAlarmView: View {
                 VStack(spacing: 30) {
                     Spacer()
 
-                    screenHeader(
-                        title: "Morning",
-                        subtitle: "二度寝でも3度寝でも、諦めない"
-                    )
+                    screenSubtitle("二度寝でも3度寝でも、諦めない")
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 20)
 
                     Spacer()
 
@@ -427,6 +425,8 @@ struct MorningAlarmView: View {
                     }
                 }
             }
+            }
+            .navigationTitle("Morning")
         }
     }
 
@@ -452,18 +452,13 @@ struct MorningAlarmView: View {
 
 // MARK: - 自動アラーム UI
 
+/// ナビバーのタイトル直下に表示するサブタイトル。タイトル本体は `.navigationTitle` に委譲しているため、ここではサブテキストのみを描画する。
 @ViewBuilder
-private func screenHeader(title: String, subtitle: String) -> some View {
-    VStack(spacing: 8) {
-        Text(title)
-            .font(.system(size: 40, weight: .heavy, design: .rounded))
-            .foregroundColor(.primary)
-
-        Text(subtitle)
-            .font(.title3)
-            .foregroundColor(.secondary)
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
+private func screenSubtitle(_ subtitle: String) -> some View {
+    Text(subtitle)
+        .font(.title3)
+        .foregroundColor(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
 }
 
 private func dateForTime(hour: Int, minute: Int) -> Date {
@@ -874,19 +869,30 @@ struct NightSuccessView: View {
 
             Spacer()
 
-            Button {
-                scheduler.reset()
-            } label: {
-                Text("閉じる")
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .frame(maxWidth: .infinity)
+            if #available(iOS 26.0, *) {
+                Button {
+                    scheduler.reset()
+                } label: {
+                    Text("閉じる")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+                .buttonStyle(.glass)
+                .tint(.indigo)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
+            } else {
+                Button {
+                    scheduler.reset()
+                } label: {
+                    Text("閉じる")
+                }
+                .buttonStyle(MaterialBounceButtonStyle(baseColor: .indigo))
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .tint(.indigo)
-            .padding(.horizontal, 24)
-            .padding(.bottom, 40)
         }
         .onAppear {
             scheduler.brightnessManager.restoreBrightness()

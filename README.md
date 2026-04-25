@@ -92,6 +92,46 @@ Four tabs (Night / Morning / History / Settings). Settings tab lets users toggle
 #### Updated: Gemini AI verification logic (`GeminiService.swift`)
 The AI verification prompt has been enhanced to prioritize **face matching** (using bone structure/facial features) and **location fixed-points** (washstand fixtures, room layout). It now explicitly ignores changes in clothing (pajamas) and bedding (sheets/pillow covers) to ensure stable verification even when your appearance or bed setup changes.
 
+### 2026-04-12
+
+#### Added: Weekly alarm schedule + tomorrow-skip overrides (`WeeklyAlarmSettings.swift`, `AlarmSettingsStore.swift`)
+Firestore `app_settings/alarm_settings` expanded from a single time to a `weekly_schedule` + `skip_overrides` structure. The Settings tab now only toggles auto mode; Morning / Night tabs host per-weekday time editing, next-alarm preview, and "skip tomorrow" toggles (morning / night / both). `AlarmScheduler` resolves the next wake alarm from the weekly schedule after a successful bedtime mission. The web dashboard shares the same schema.
+
+#### Added: Offline fallback via shake (`ShakeMissionView.swift`)
+If Gemini API is unreachable, the user is routed to a shake mission that requires 100 vigorous shakes (accelerometer magnitude > 2.5) to stop the alarm. Works for both morning and night flows.
+
+#### Added: Alarm sound test button (debug)
+Settings screen includes a "Test alarm sound" button that fires the wake alarm 10 seconds later, letting users verify real-device volume, notifications, and background behavior. Uses `NotificationCenter` to pass the scheduled date from `AlarmSettingsStore` to `AlarmScheduler`.
+
+### 2026-04-18
+
+#### Added: Auto-set wake alarm after bedtime (manual mode)
+New `autoSetWakeAlarmAfterBedtime` flag in `WeeklyAlarmSettings`. When enabled in manual mode, completing the bedtime mission automatically schedules the next wake alarm based on the weekly weekday schedule. Toggle is exposed in `SettingsView` only when auto mode is OFF.
+
+#### Changed: Unified cancel-button style on armed screens
+`ArmedView` / `NightArmedView` cancel buttons now use `GlassButtonStyle` (iOS 26+) or `MaterialBounceButtonStyle` fallback with red tint, matching the other primary buttons.
+
+### 2026-04-19
+
+#### Changed: Alarm audio hardening
+`alarm_sound.wav` is bundled and 4×-amplified (peak 100%). Playback volume raised from 0.8 → 1.0, and system volume is auto-set to 33% on alarm fire. Real-device photo saving fixed (previously simulator-only).
+
+#### Fixed: Sleep-time alarm firing (Timer → `AVAudioPlayerDelegate`)
+Replaced the `Timer`-based trigger with an `AVAudioPlayerDelegate` callback driven by the `silence.wav` loop. Ensures the armed → ringing transition fires reliably while the device is asleep.
+
+#### Fixed: Vibration stopping bugs
+- Scroll-time vibration bug fixed by running the feedback timer in `RunLoop` `.common` mode.
+- Sleep / background vibration fixed by switching from `UIImpactFeedbackGenerator` to `AudioServicesPlaySystemSound`.
+
+#### Changed: Gemini image payload (Full HD auto-resize)
+Images sent to the Gemini API are resized to Full HD before upload, cutting token usage by ~97%.
+
+#### Added: In-chat debug stop + Woke-up button restyle + volume guide
+Debug sessions can now be exited from the chat screen. "Woke up" button was restyled (red text on a blue button). A volume guide image is shown on the armed and settings screens.
+
+#### Added: Offline debug mode (`AlarmScheduler.startOfflineDebugMission()`)
+Settings screen gains a second debug button below "Test alarm sound" that jumps directly into the shake fallback mission — skipping alarm firing and Gemini verification. Purpose: verify that the 100-shake rescue flow behaves correctly under genuine offline conditions.
+
 ## Stack
 - Platform: iOS (iPhone)
 - Framework: SwiftUI
@@ -187,6 +227,46 @@ Firestoreの `sleep_records` コレクションへの読み書きを実装。ミ
 
 #### 更新: Gemini AI 検証ロジックの強化 (`GeminiService.swift`)
 AI検証プロンプトを刷新。服装（パジャマ）や寝具（シーツ・枕カバー）の変化を無視し、**「ユーザー本人の顔（骨格）」**と**「特定の場所（洗面所の設備や部屋の配置）」**を最優先で照合するように変更しました。これにより、日常生活での些細な変化による認証エラーを最小限に抑えます。
+
+### 2026-04-12
+
+#### 追加: 曜日別アラームスケジュール + 明日スキップ (`WeeklyAlarmSettings.swift`, `AlarmSettingsStore.swift`)
+Firestore の `app_settings/alarm_settings` を単一時刻保存から `weekly_schedule` + `skip_overrides` 形式に拡張。Settings タブは自動モード切替のみに簡素化し、曜日ごとの時刻編集・次回アラーム表示・「明朝 / 明夜 / 両方スキップ」操作は Morning / Night タブ側に再編成。`AlarmScheduler` は就寝成功後の起床アラームを曜日設定ベースで解決。Webダッシュボードも同じ Firestore スキーマを共有。
+
+#### 追加: オフライン救済ミッション（シェイク） (`ShakeMissionView.swift`)
+Gemini API が利用できない場合、加速度センサーで100回のシェイク（magnitude > 2.5）を検出する救済ミッションに遷移。起床・就寝の両フローに対応。
+
+#### 追加: アラーム音試用ボタン（デバッグ）
+設定画面に「アラーム音を試用」ボタンを追加。10秒後に起床アラームが発動し、実機での音量・通知・バックグラウンド動作を検証可能。`NotificationCenter` 経由で `AlarmSettingsStore` から `AlarmScheduler` にスケジュール命令を渡す設計。
+
+### 2026-04-18
+
+#### 追加: 就寝成功後の起床アラーム自動セット（手動モード）
+`WeeklyAlarmSettings` に `autoSetWakeAlarmAfterBedtime` フラグを追加。手動モードでもこの設定が ON の場合、就寝ミッション成功時に曜日設定ベースで次回の起床アラームを自動予約。トグルは自動モード OFF のときのみ `SettingsView` に表示。
+
+#### 変更: アーム中画面のキャンセルボタンのスタイル統一
+`ArmedView` / `NightArmedView` のキャンセルボタンを、他のメインボタンと同様に `GlassButtonStyle`（iOS 26+）または `MaterialBounceButtonStyle`（フォールバック）で赤色に統一。
+
+### 2026-04-19
+
+#### 変更: アラーム音の強化
+`alarm_sound.wav` をプロジェクトに登録し、音量を4倍に増幅（ピーク100%）。再生音量を 0.8 → 1.0 に引き上げ、さらにアラーム発動時にシステム音量を自動で33%に設定。実機での写真保存にも対応（従来はシミュレータ限定だった）。
+
+#### 修正: スリープ中のアラーム発動バグ（Timer → `AVAudioPlayerDelegate`）
+`Timer` ベースのトリガーを廃止し、`silence.wav` ループを駆動する `AVAudioPlayerDelegate` コールバックで切替えるように変更。スリープ中でも armed → ringing の遷移が確実に発動。
+
+#### 修正: 振動停止バグ
+- スクロール中に振動が止まらないバグを `RunLoop` の `.common` モード使用で修正。
+- スリープ・バックグラウンド時の振動停止バグを `UIImpactFeedbackGenerator` から `AudioServicesPlaySystemSound` への変更で修正。
+
+#### 変更: Gemini API 画像送信を Full HD に自動リサイズ
+Gemini API に送信する画像を事前に Full HD へ縮小することで、トークン使用量を約97%削減。
+
+#### 追加: チャット画面のデバッグ停止ボタン + Woke up ボタン刷新 + 音量ガイド
+デバッグセッションはチャット画面から離脱可能に。「Woke up」ボタンは赤文字＋青ボタンのデザインへ変更。待機画面・設定画面に音量ガイド画像を追加。
+
+#### 追加: オフラインデバッグモード (`AlarmScheduler.startOfflineDebugMission()`)
+設定画面の「アラーム音を試用」の下に、シェイク救済ミッションへ直接遷移するデバッグボタンを追加。アラーム発動・Gemini認証を飛ばして、シェイク100回タスクがオフライン状況下で正しく動作するかを単独で検証するための機能。
 
 ## スタック
 - プラットフォーム: iOS (iPhone)

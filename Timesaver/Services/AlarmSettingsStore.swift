@@ -1,18 +1,42 @@
-import Foundation
 import SwiftUI
+import FirebaseFirestore
 
 @MainActor
 final class AlarmSettingsStore: ObservableObject {
     @Published var settings: WeeklyAlarmSettings
     @Published var isSyncing = false
 
+    /// 設定が外部（Firestore）から更新された際のコールバック
+    var onSettingsChanged: (() -> Void)?
+
     private let localSettingsKey = "weeklyAlarmSettingsData"
+    private var listenerRegistration: ListenerRegistration?
 
     init() {
         if let localSettings = Self.loadLocalSettings(forKey: localSettingsKey) {
             settings = localSettings
         } else {
             settings = WeeklyAlarmSettings.fromFirestoreData(nil)
+        }
+        
+        listenToFirestore()
+    }
+
+    deinit {
+        listenerRegistration?.remove()
+    }
+
+    func listenToFirestore() {
+        listenerRegistration?.remove()
+        listenerRegistration = FirestoreService.shared.subscribeToSettings { [weak self] newSettings in
+            Task { @MainActor in
+                // ローカルと異なる場合のみ更新してコールバック
+                if self?.settings != newSettings {
+                    self?.settings = newSettings
+                    self?.saveLocal()
+                    self?.onSettingsChanged?()
+                }
+            }
         }
     }
 

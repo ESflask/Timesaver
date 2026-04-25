@@ -3,6 +3,7 @@ import SwiftUI
 /// 設定画面: 自動モードの切り替えと同期状態を管理
 struct SettingsView: View {
     @EnvironmentObject var settingsStore: AlarmSettingsStore
+    @EnvironmentObject var scheduler: AlarmScheduler
 
     var body: some View {
         NavigationStack {
@@ -95,6 +96,18 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.glass)
                         .tint(.orange)
+
+                        Button {
+                            scheduler.startOfflineDebugMission()
+                        } label: {
+                            Text("オフラインデバッグモード")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.glass)
+                        .tint(.purple)
                     } else {
                         Button {
                             settingsStore.testAlarmSound()
@@ -102,11 +115,21 @@ struct SettingsView: View {
                             Text("アラーム音を試用")
                         }
                         .buttonStyle(MaterialBounceButtonStyle(baseColor: .orange))
+
+                        Button {
+                            scheduler.startOfflineDebugMission()
+                        } label: {
+                            Text("オフラインデバッグモード")
+                        }
+                        .buttonStyle(MaterialBounceButtonStyle(baseColor: .purple))
                     }
                 } header: {
                     Text("デバッグ・テスト")
                 } footer: {
-                    Text("ボタンを押すと10秒後にアラーム音が鳴ります。")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("「アラーム音を試用」: 10秒後にアラーム音が鳴ります。")
+                        Text("「オフラインデバッグモード」: シェイク200回タスクを直接起動し、オフライン救済フローを検証できます。")
+                    }
                 }
             }
             .navigationTitle("時間設定")

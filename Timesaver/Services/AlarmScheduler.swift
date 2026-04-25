@@ -13,7 +13,11 @@ class AlarmScheduler: ObservableObject {
     let brightnessManager = ScreenBrightnessManager()
     let soundManager = AlarmSoundManager()
     var historyManager: SleepHistoryManager?
-    weak var settingsStore: AlarmSettingsStore?
+    weak var settingsStore: AlarmSettingsStore? {
+        didSet {
+            setupSettingsCallback()
+        }
+    }
     private let notificationCenter = UNUserNotificationCenter.current()
     private let sessionKey = "currentWakeSession"
     /// 就寝アラームの目標時刻（onSilenceLoopTick で監視）
@@ -37,6 +41,54 @@ class AlarmScheduler: ObservableObject {
         loadSession()
         requestNotificationPermission()
         setupTestNotificationObserver()
+    }
+
+    private func setupSettingsCallback() {
+        settingsStore?.onSettingsChanged = { [weak self] in
+            Task { @MainActor in
+                self?.handleSettingsChange()
+            }
+        }
+    }
+
+    private func handleSettingsChange() {
+        print("設定が更新されました。アラームを再確認します。")
+        
+        guard let settings = settingsStore?.settings, settings.autoEnabled else {
+            // 自動モードがオフになった場合、稼働中のアラームがあれば解除
+            if currentState == .armed || currentState == .nightArmed {
+                cancelAllAlarms()
+                currentState = .idle
+                session = nil
+                clearSession()
+            }
+            return
+        }
+
+        // 自動モードがオンの場合
+        switch currentState {
+        case .idle:
+            // 待機中なら次のアラーム（通常は就寝）をセット
+            scheduleAutoAlarms()
+            
+        case .armed:
+            // 起床アラーム待ちの場合、最新の設定で起床時刻を更新
+            if let wakeTime = settings.nextScheduledDate(for: .wake, after: Date()) {
+                print("起床アラームを再設定: \(wakeTime)")
+                setAlarm(wakeTime)
+            }
+            
+        case .nightArmed:
+            // 就寝アラーム待ちの場合、最新の設定で就寝時刻を更新
+            if let bedtime = settings.nextScheduledDate(for: .bedtime, after: Date()) {
+                print("就寝アラームを再設定: \(bedtime)")
+                setBedtimeAlarm(bedtime)
+            }
+            
+        default:
+            // それ以外の状態（鳴動中など）は何もしない
+            break
+        }
     }
 
     private func setupTestNotificationObserver() {
@@ -290,6 +342,13 @@ class AlarmScheduler: ObservableObject {
             currentState = .fallbackMission
         }
         saveSession()
+    }
+
+    /// デバッグ用: オフライン救済（シェイク200回）ミッションを直接起動
+    /// アラーム発動・Gemini認証を飛ばしてシェイク画面のみテストする
+    func startOfflineDebugMission() {
+        isDebugMode = true
+        currentState = .fallbackMission
     }
 
     /// ミッション完了 → 振動停止・全アラーム解除 → 成功画面

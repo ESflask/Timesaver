@@ -1,6 +1,7 @@
 import AVFoundation
 import MediaPlayer
 import UIKit
+import AudioToolbox
 
 /// アラーム音の再生・停止・振動切り替えを管理
 class AlarmSoundManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
@@ -197,15 +198,12 @@ class AlarmSoundManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     /// 1回の振動を発生させる
     private func triggerVibration() {
-        let generator = UIImpactFeedbackGenerator(style: .heavy)
-        generator.prepare()
-        generator.impactOccurred()
+        // システムの標準バイブレーションを呼び出し（バックグラウンド・スリープ時でも鳴動可能）
+        AudioServicesPlaySystemSound(SystemSoundID(4095))
+        
         // 短い間隔で連続振動させてしっかり体感させる
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            generator.impactOccurred()
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            generator.impactOccurred()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            AudioServicesPlaySystemSound(SystemSoundID(4095))
         }
     }
 

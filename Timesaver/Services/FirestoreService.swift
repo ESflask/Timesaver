@@ -32,6 +32,20 @@ class FirestoreService {
         return WeeklyAlarmSettings.fromFirestoreData(doc.data())
     }
 
+    /// Firestore の設定変更を監視
+    func subscribeToSettings(completion: @escaping (WeeklyAlarmSettings) -> Void) -> ListenerRegistration {
+        return db.collection(settingsCollection).document(settingsDoc)
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    print("設定の監視エラー: \(error.localizedDescription)")
+                    return
+                }
+                guard let data = snapshot?.data() else { return }
+                let settings = WeeklyAlarmSettings.fromFirestoreData(data)
+                completion(settings)
+            }
+    }
+
     /// Firestore へ設定を保存
     func saveSettings(_ settings: WeeklyAlarmSettings) async throws {
         var data = settings.asFirestoreData()

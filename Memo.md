@@ -65,14 +65,42 @@
     - `AlarmScheduler` のロジックを更新し、設定が有効な場合に就寝成功後、曜日設定に基づいた起床時刻を自動計算してセットするように変更。
 ## 4月19日 (土)-------------------------------------------------
 
-- **alarm_sound.wav のプロジェクト登録と有効化**
-- **alarm_sound.wav の音量4倍増幅（ピーク100%）**
-- **アラーム再生音量を最大化（volume 0.8 → 1.0）**
-- **アラーム発動時にシステム音量を自動設定（33%）**
-- **Gemini API 画像送信を Full HD に自動リサイズ（トークン約97%削減）**
-- **実機での写真保存対応（シミュレータ限定だったのを修正）**
-- **スリープ中アラーム発動修正（Timer → AVAudioPlayerDelegate方式）**
-- **デバッグモード停止ボタン追加（チャット画面から離脱可能に）**
-- **Woke up ボタンデザイン変更（赤文字 + 青ボタン）**
-- **音量ガイド画像を待機画面・設定画面に追加**
-- **スクロール中の振動停止バグ修正（RunLoop .common モード）**
+- alarm_sound.wav のプロジェクト登録と有効化
+- **alarm_sound.wav の音量4倍増幅（ピーク100%）
+- **アラーム再生音量を最大化（volume 0.8 → 1.0）
+- **アラーム発動時にシステム音量を自動設定（33%）
+- **Gemini API 画像送信を Full HD に自動リサイズ（トークン約97%削減）
+- **実機での写真保存対応（シミュレータ限定だったのを修正）
+- **スリープ中アラーム発動修正（Timer → AVAudioPlayerDelegate方式）
+- **デバッグモード停止ボタン追加（チャット画面から離脱可能に
+- **Woke up ボタンデザイン変更（赤文字 + 青ボタン）
+- **音量ガイド画像を待機画面・設定画面に追加
+- **スクロール中の振動停止バグ修正（RunLoop .common モード）
+- **スリープ・バックグラウンド時の振動停止バグ修正（UIImpactFeedbackGenerator から AudioServicesPlaySystemSound に変更）
+- **[NEW] オフラインデバッグモードの追加**:
+    - 設定画面の「アラーム音を試用」の下に「オフラインデバッグモード」ボタンを配置。
+    - ボタンを押すと、アラーム発動・Gemini認証を飛ばしてシェイク100回ミッション（`ShakeMissionView`）に直接遷移。
+    - `AlarmScheduler.startOfflineDebugMission()` を追加し、`currentState` を `.fallbackMission` に切り替える設計。
+    - 目的: オフライン状況下でシェイク100回タスクが問題なく動作するかを単独で検証できるようにする。
+### 現在の課題
+- Web版においての機能性・利便性がiOS版に劣る(ただしアラーム機能はWebには不要)
+4月25日　(土)
+- Web版から適応してfirebaseに送られた時間をiOSは常時引っ張ってきて適応するロジックへ改善
+- オフライン必須タスクのシェイク数を100→200へ変更
+- iOS
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Timesaver アプリ: 設定データの保存場所
+    match /app_settings/{document=**} {
+      allow read, write: if true;
+    }
+
+    // Timesaver アプリ: 睡眠・起床履歴の保存場所
+    match /sleep_records/{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -32,20 +32,30 @@ struct WakeUpSuccessView: View {
             Spacer()
 
             // 新しいセッションへ
-            Button {
-                scheduler.reset()
-            } label: {
-                Text("新しいアラームをセット")
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.green)
-                    .cornerRadius(16)
+            if #available(iOS 26.0, *) {
+                Button {
+                    scheduler.reset()
+                } label: {
+                    Text("新しいアラームをセット")
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+                .buttonStyle(.glass)
+                .tint(.green)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
+            } else {
+                Button {
+                    scheduler.reset()
+                } label: {
+                    Text("新しいアラームをセット")
+                }
+                .buttonStyle(MaterialBounceButtonStyle(baseColor: .green))
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 40)
         }
         .onAppear {
             showConfetti = true
