@@ -87,7 +87,7 @@
 4月25日　(土)
 - Web版から適応してfirebaseに送られた時間をiOSは常時引っ張ってきて適応するロジックへ改善
 - オフライン必須タスクのシェイク数を100→200へ変更
-- iOS
+- iOS版のUI改善(GlassButtonStyle適応多数)
 
 rules_version = '2';
 service cloud.firestore {
