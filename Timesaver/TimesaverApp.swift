@@ -16,6 +16,7 @@ struct TimesaverApp: App {
     @StateObject private var scheduler = AlarmScheduler()
     @StateObject private var historyManager = SleepHistoryManager()
     @StateObject private var settingsStore = AlarmSettingsStore()
+    @StateObject private var themeStore = AppThemeStore()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -24,6 +25,9 @@ struct TimesaverApp: App {
                 .environmentObject(scheduler)
                 .environmentObject(historyManager)
                 .environmentObject(settingsStore)
+                .environmentObject(themeStore)
+                .preferredColorScheme(themeStore.selectedTheme.colorScheme)
+                .tint(themeStore.selectedTheme.accent)
                 .onAppear {
                     scheduler.historyManager = historyManager
                     scheduler.settingsStore = settingsStore

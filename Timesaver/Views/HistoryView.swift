@@ -3,6 +3,11 @@ import SwiftUI
 /// 睡眠・起床記録の履歴画面
 struct HistoryView: View {
     @EnvironmentObject var historyManager: SleepHistoryManager
+    @EnvironmentObject var themeStore: AppThemeStore
+
+    private var theme: AppTheme {
+        themeStore.selectedTheme
+    }
 
     var body: some View {
         NavigationStack {
@@ -14,25 +19,29 @@ struct HistoryView: View {
                         Spacer()
                         Image(systemName: "clock.arrow.circlepath")
                             .font(.system(size: 50))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.textDim)
                         Text("まだ記録がありません")
                             .font(.headline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.textDim)
                         Spacer()
                     }
                 } else {
                     List {
                         ForEach(historyManager.records) { record in
                             RecordRow(record: record)
+                                .listRowBackground(theme.surface)
                         }
                         .onDelete { offsets in
                             historyManager.deleteRecord(at: offsets)
                         }
                     }
+                    .scrollContentBackground(.hidden)
                 }
             }
+            .background(theme.background.ignoresSafeArea())
             .navigationTitle("履歴")
             .navigationBarTitleDisplayMode(.inline)
+            .themedNavigation(theme)
             .refreshable {
                 historyManager.fetchFromFirestore()
             }
@@ -44,6 +53,7 @@ struct HistoryView: View {
 
 struct RecordRow: View {
     let record: SleepRecord
+    @EnvironmentObject var themeStore: AppThemeStore
 
     private let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -59,18 +69,22 @@ struct RecordRow: View {
     }()
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+        let modeColor = record.mode == .night ? theme.nightAccent : theme.morningAccent
+
         VStack(alignment: .leading, spacing: 8) {
             // 日付 + モードアイコン
             HStack {
                 Image(systemName: record.mode == .night ? "moon.fill" : "sun.max.fill")
-                    .foregroundColor(record.mode == .night ? .indigo : .orange)
+                    .foregroundColor(modeColor)
                 Text(dateFormatter.string(from: record.alarmSetTime))
                     .font(.headline)
                 Text(record.mode == .night ? "就寝" : "起床")
                     .font(.caption)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(record.mode == .night ? Color.indigo.opacity(0.2) : Color.orange.opacity(0.2))
+                    .foregroundColor(modeColor)
+                    .background(modeColor.opacity(0.18))
                     .cornerRadius(4)
             }
 
@@ -79,13 +93,13 @@ struct RecordRow: View {
                 if let fired = record.alarmFiredTime {
                     Label(timeFormatter.string(from: fired), systemImage: "bell.fill")
                         .font(.subheadline)
-                        .foregroundColor(.red)
+                        .foregroundColor(theme.red)
                 }
                 if let action = record.actionButtonTime {
                     Label(timeFormatter.string(from: action),
                           systemImage: record.mode == .night ? "bed.double.fill" : "figure.walk")
                         .font(.subheadline)
-                        .foregroundColor(record.mode == .night ? .indigo : .orange)
+                        .foregroundColor(modeColor)
                 }
             }
 
@@ -142,4 +156,5 @@ struct RecordRow: View {
 #Preview {
     HistoryView()
         .environmentObject(SleepHistoryManager())
+        .environmentObject(AppThemeStore())
 }

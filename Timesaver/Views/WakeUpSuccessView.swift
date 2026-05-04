@@ -3,30 +3,34 @@ import SwiftUI
 /// 起床成功画面
 struct WakeUpSuccessView: View {
     @EnvironmentObject var scheduler: AlarmScheduler
+    @EnvironmentObject var themeStore: AppThemeStore
     @State private var showConfetti = false
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+
         VStack(spacing: 30) {
             Spacer()
 
             // 成功アイコン
             Image(systemName: "sun.max.fill")
                 .font(.system(size: 80))
-                .foregroundColor(.yellow)
+                .foregroundColor(theme.morningAccent)
                 .scaleEffect(showConfetti ? 1.2 : 0.5)
                 .animation(.spring(response: 0.6, dampingFraction: 0.5), value: showConfetti)
 
             VStack(spacing: 12) {
                 Text("おはよう！")
                     .font(.system(size: 40, weight: .black, design: .rounded))
+                    .foregroundColor(theme.text)
 
                 Text("あなたの勝利です")
                     .font(.title3)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.textDim)
 
                 Text("全てのアラームを停止しました")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.textDim)
             }
 
             Spacer()
@@ -43,7 +47,7 @@ struct WakeUpSuccessView: View {
                         .padding(.vertical, 16)
                 }
                 .buttonStyle(.glass)
-                .tint(.green)
+                .tint(theme.green)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             } else {
@@ -52,11 +56,12 @@ struct WakeUpSuccessView: View {
                 } label: {
                     Text("新しいアラームをセット")
                 }
-                .buttonStyle(MaterialBounceButtonStyle(baseColor: .green))
+                .buttonStyle(MaterialBounceButtonStyle(baseColor: theme.green))
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }
         }
+        .background(theme.background.ignoresSafeArea())
         .onAppear {
             showConfetti = true
             scheduler.brightnessManager.restoreBrightness()
@@ -67,4 +72,5 @@ struct WakeUpSuccessView: View {
 #Preview {
     WakeUpSuccessView()
         .environmentObject(AlarmScheduler())
+        .environmentObject(AppThemeStore())
 }

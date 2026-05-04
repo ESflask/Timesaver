@@ -4,6 +4,7 @@ import CoreMotion
 /// シェイクミッション: スマホを激しく振って覚醒を証明
 struct ShakeMissionView: View {
     let onComplete: () -> Void
+    @EnvironmentObject var themeStore: AppThemeStore
 
     @State private var shakeCount: Int = 0
     @State private var motionManager = CMMotionManager()
@@ -16,41 +17,47 @@ struct ShakeMissionView: View {
     }
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+
         VStack(spacing: 30) {
             Text("スマホを振れ！")
                 .font(.system(size: 28, weight: .black))
+                .foregroundColor(theme.text)
 
             // プログレスリング
             ZStack {
                 Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 12)
+                    .stroke(theme.textDim.opacity(0.2), lineWidth: 12)
 
                 Circle()
                     .trim(from: 0, to: progress)
-                    .stroke(Color.orange, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .stroke(theme.morningAccent, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(.easeOut(duration: 0.2), value: shakeCount)
 
                 VStack {
                     Text("\(shakeCount)")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .foregroundColor(theme.text)
 
                     Text("/ \(requiredShakes)")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.textDim)
                 }
             }
             .frame(width: 180, height: 180)
 
             Image(systemName: "iphone.radiowaves.left.and.right")
                 .font(.system(size: 40))
-                .foregroundColor(.orange)
+                .foregroundColor(theme.morningAccent)
                 .symbolEffect(.bounce, options: .repeating, value: isMonitoring)
 
             Text("激しくシェイクしてください")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.textDim)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.background.ignoresSafeArea())
         .onAppear {
             startMotionDetection()
         }
@@ -96,4 +103,5 @@ struct ShakeMissionView: View {
 
 #Preview {
     ShakeMissionView(onComplete: {})
+        .environmentObject(AppThemeStore())
 }

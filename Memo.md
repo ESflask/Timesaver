@@ -79,9 +79,9 @@
 - **スリープ・バックグラウンド時の振動停止バグ修正（UIImpactFeedbackGenerator から AudioServicesPlaySystemSound に変更）
 - **[NEW] オフラインデバッグモードの追加**:
     - 設定画面の「アラーム音を試用」の下に「オフラインデバッグモード」ボタンを配置。
-    - ボタンを押すと、アラーム発動・Gemini認証を飛ばしてシェイク100回ミッション（`ShakeMissionView`）に直接遷移。
+    - ボタンを押すと、アラーム発動・Gemini認証を飛ばして当時の必須回数である100回のシェイクミッション（`ShakeMissionView`）に直接遷移（4/25以降は200回）。
     - `AlarmScheduler.startOfflineDebugMission()` を追加し、`currentState` を `.fallbackMission` に切り替える設計。
-    - 目的: オフライン状況下でシェイク100回タスクが問題なく動作するかを単独で検証できるようにする。
+    - 目的: オフライン状況下でシェイクタスクが問題なく動作するかを単独で検証できるようにする。
 ### 現在の課題
 - Web版においての機能性・利便性がiOS版に劣る(ただしアラーム機能はWebには不要)
 4月25日　(土)
@@ -104,3 +104,53 @@ service cloud.firestore {
     }
   }
 }
+
+4月26日 (日)
+-
+
+## 5月4日 (月)-------------------------------------------------
+
+- **[NEW] Web版カラーテーマ設定の追加**:
+    - 左サイドバーに `Settings` を追加し、Web版専用の設定画面へ遷移できるように変更。
+    - Web版設定画面に「テーマ設定」欄を追加し、クリックでテーマ選択画面へ遷移する構成に変更。
+    - テーマ選択画面に「紫(デフォルト)」「黒」「白」「Tokyo Night」を追加。
+    - 選択テーマは `localStorage` に保存し、Dashboard / History / Detail / 時間設定を含むWeb版全体に反映。
+    - 紫固定だった主要な枠線・ホバー・アクティブ色をCSS変数化し、テーマごとに色調が切り替わるように整理。
+- **[NEW] Web版Historyのタスク完了時間グラフ追加**:
+    - `sleep_records` の `alarmFiredTime` と `missionCompletedTime` から、アラーム発動〜ミッション完了までの所要時間を集計。
+    - History画面に Weekly / Monthly の切替付きグラフを追加し、Morning / Night / All のフィルターと連動するように変更。
+    - night単体・morning単体・両方が揃ったセッションを区別できるよう、カード側の `has_morning` / `has_night` / 表示ラベルを整理。
+- **[NEW] iOS版カラーテーマ設定の追加**:
+    - `AppTheme` と `AppThemeStore` を追加し、「紫」「白」「黒」「Tokyo Night」の4テーマをiOS版にも導入。
+    - `TimesaverApp` で `AppThemeStore` を `EnvironmentObject` として注入し、`preferredColorScheme` と `tint` を選択テーマに連動。
+    - Settings画面に「カラーテーマ」設定画面を追加し、選択テーマを `UserDefaults` に保存するように変更。
+    - Night / Morning / History / 認証チャット / アラーム発動中 / シェイクミッション / 成功画面の固定色をテーマ参照に置き換え。
+    - ナビゲーションバー、タブバー、リスト背景、カード背景、ボタン色をテーマごとに切り替わるように調整。
+- **[UPDATE] iOS版設定画面の時間設定見出し整理**:
+    - Settings画面のナビゲーションタイトルを「時間設定」から「設定」に変更。
+    - 「カラーテーマ」設定をSettings画面上部へ移動し、その下に大きい「時間設定」見出しを配置。
+    - `LazyVStack` の `Section` ヘッダーを使い、スクロール中に「時間設定」見出しが画面上部へ残るSwiftUI標準の挙動を適用。
+    - `List` の行背景ごと固定されていたため、`ScrollView` + `LazyVStack(pinnedViews:)` に変更し、「時間設定」見出しと設定カードの固定判定を分離。
+- その他:
+    - `MaterialBounceButtonStyle` に `foregroundColor` を追加し、白テーマや黒テーマでも文字色を調整できるように変更。
+    - `AppTheme.swift` / `AppThemeStore.swift` をXcodeプロジェクトのSourcesへ登録。
+    - `README.md` 冒頭にスクリーンショット日付メモを追加。
+    - `README.md` / `Agents.md` にテーマ設定、Web履歴グラフ、Web設定同期保護、シェイク200回仕様、`silence.wav` ループコールバック方式、Web版SVGロゴ、Flask版認証設定を反映。
+- **[FIX] Web版設定保存時の iOS 共有キー欠落を修正**:
+    - `normalize_settings()` に `auto_set_wake_alarm_after_bedtime` を追加し、Web版が読み込んだ設定を保存しても iOS 側の「就寝アラーム終了後に起床を自動セット」設定が消えないように変更。
+    - Firestore 保存処理を既存データとPOST内容のマージ後に `update` する方式へ変更し、古いWeb画面やWeb側が知らないトップレベルキーで設定が欠落しにくい構成へ変更。
+    - Web版の時間設定画面にも同設定のトグルを追加し、自動アラームOFF時のみ表示されるように変更。
+- **[UI] Web版サイドバーの並び順を調整**:
+    - 左ナビバーの「時間設定」を「Settings」のすぐ下に移動。
+- **[UI] Web版サイドバーのタイトルロゴをSVG化**:
+    - `Infinite-Wake-logo.svg` を Web版の `static` 配下へ配置。
+    - 左サイドバー上部の文字タイトル「Infinite Wake」をSVGロゴ画像に置き換え。
+    - ロゴクリック時はWeb版のデフォルトページ（Dashboard / `/`）へ遷移するように変更。
+- **[DOC] 最新状況の再同期**:
+    - `Agents.md` のプロジェクト構成を実際の `Timesaver_SW/Timesaver` + `web` + `shared_photos` 構成に合わせて更新。
+    - `README.md` の古い「アプリ内Timer」表記を、現在の `silence.wav` 手動ループ完了コールバック方式に修正。
+    - READMEのセットアップに `GoogleService-Info.plist` とWeb版 `FIREBASE_SERVICE_ACCOUNT` / `web/` 配下Firebase Admin SDK JSON の前提を追加。
+    - ロゴを枠内の左右中央に配置し、枠の高さを使い切る表示に調整。
+- **[UI] iOS版アプリアイコンをSVGロゴ由来に変更**:
+    - `web/static/Infinite-Wake-logo.svg` と同一のSVGロゴから1024pxの透過なしPNGを生成し、`AppIcon.appiconset` に登録。
+    - `Contents.json` に `AppIcon.png` を紐づけ、iOS AppIconとしてビルド対象に含めるように変更。

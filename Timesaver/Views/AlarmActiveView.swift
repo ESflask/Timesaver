@@ -4,10 +4,15 @@ import SwiftUI
 struct AlarmActiveView: View {
     let mode: GeminiService.VerificationMode
     @EnvironmentObject var scheduler: AlarmScheduler
+    @EnvironmentObject var themeStore: AppThemeStore
     @State private var isFlashing = false
 
+    private var theme: AppTheme {
+        themeStore.selectedTheme
+    }
+
     private var accentColor: Color {
-        mode == .night ? .indigo : .red
+        mode == .night ? theme.nightAccent : theme.red
     }
 
     var body: some View {
@@ -53,12 +58,12 @@ struct AlarmActiveView: View {
                         Text(mode == .night ? "Went to bed" : "Woke up")
                             .font(.title2)
                             .fontWeight(.bold)
-                            .foregroundColor(mode == .night ? .white : .red)
+                            .foregroundColor(mode == .night ? .white : theme.red)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 20)
                     }
                     .buttonStyle(.glass)
-                    .tint(mode == .night ? .indigo : .blue)
+                    .tint(mode == .night ? theme.nightAccent : theme.accent)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 50)
                 } else {
@@ -72,10 +77,10 @@ struct AlarmActiveView: View {
                         Text(mode == .night ? "Went to bed" : "Woke up")
                             .font(.title2)
                             .fontWeight(.bold)
-                            .foregroundColor(mode == .night ? .white : .red)
+                            .foregroundColor(mode == .night ? .white : theme.red)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 20)
-                            .background(mode == .night ? Color.indigo.opacity(0.8) : Color.blue.opacity(0.8))
+                            .background(mode == .night ? theme.nightAccent.opacity(0.85) : theme.accent.opacity(0.85))
                             .cornerRadius(20)
                     }
                     .padding(.horizontal, 24)
@@ -92,4 +97,5 @@ struct AlarmActiveView: View {
 #Preview {
     AlarmActiveView(mode: .morning)
         .environmentObject(AlarmScheduler())
+        .environmentObject(AppThemeStore())
 }

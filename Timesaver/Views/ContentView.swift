@@ -4,6 +4,7 @@ import SwiftUI
 
 struct MaterialBounceButtonStyle: ButtonStyle {
     var baseColor: Color
+    var foregroundColor: Color = .white
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -20,7 +21,7 @@ struct MaterialBounceButtonStyle: ButtonStyle {
                         .fill(.white.opacity(configuration.isPressed ? 0.35 : 0))
                 }
             )
-            .foregroundColor(.white)
+            .foregroundColor(foregroundColor)
             .scaleEffect(configuration.isPressed ? 0.93 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.5), value: configuration.isPressed)
     }
@@ -67,7 +68,12 @@ struct ContentView: View {
 // MARK: - タブ切り替え画面
 
 struct MainTabView: View {
+    @EnvironmentObject var themeStore: AppThemeStore
     @State private var selectedTab = 0
+
+    private var theme: AppTheme {
+        themeStore.selectedTheme
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -99,6 +105,10 @@ struct MainTabView: View {
                 }
                 .tag(3)
         }
+        .tint(theme.accent)
+        .toolbarBackground(theme.surface, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+        .toolbarColorScheme(theme.colorScheme, for: .tabBar)
     }
 }
 
@@ -107,6 +117,7 @@ struct MainTabView: View {
 struct NightAlarmView: View {
     @EnvironmentObject var scheduler: AlarmScheduler
     @EnvironmentObject var settingsStore: AlarmSettingsStore
+    @EnvironmentObject var themeStore: AppThemeStore
     @State private var bedtime: Date = {
         let cal = Calendar.current
         return cal.date(bySettingHour: 23, minute: 0, second: 0, of: Date()) ?? Date()
@@ -116,6 +127,10 @@ struct NightAlarmView: View {
 
     private var autoAlarmEnabled: Bool {
         settingsStore.settings.autoEnabled
+    }
+
+    private var theme: AppTheme {
+        themeStore.selectedTheme
     }
 
     var body: some View {
@@ -129,14 +144,14 @@ struct NightAlarmView: View {
                         AutoAlarmSummaryCard(
                             title: "次回の就寝アラーム",
                             value: settingsStore.nextAlarmSummary(for: .bedtime),
-                            accentColor: .indigo,
+                            accentColor: theme.nightAccent,
                             systemImage: "moon.zzz.fill"
                         )
 
                         WeekdayScheduleGrid(
                             title: "曜日ごとの就寝時刻",
                             kind: .bedtime,
-                            accentColor: .indigo
+                            accentColor: theme.nightAccent
                         ) { weekday in
                             editingDay = weekday
                             editingDate = dateForTime(
@@ -146,7 +161,7 @@ struct NightAlarmView: View {
                         }
 
                         TomorrowSkipSection(
-                            accentColor: .indigo,
+                            accentColor: theme.nightAccent,
                             skipOverride: settingsStore.tomorrowSkipOverride(),
                             onToggleWake: {
                                 settingsStore.toggleTomorrowSkip(kind: .wake)
@@ -174,14 +189,14 @@ struct NightAlarmView: View {
                                     .padding(.vertical, 16)
                             }
                             .buttonStyle(.glass)
-                            .tint(.indigo)
+                            .tint(theme.nightAccent)
                         } else {
                             Button {
                                 scheduler.scheduleAutoAlarms()
                             } label: {
                                 Text("次の自動就寝アラームをセット")
                             }
-                            .buttonStyle(MaterialBounceButtonStyle(baseColor: .indigo))
+                            .buttonStyle(MaterialBounceButtonStyle(baseColor: theme.nightAccent, foregroundColor: theme.onAccent))
                         }
 
                         Text("曜日をタップすると、その曜日だけ就寝時刻を変更できます。")
@@ -196,7 +211,7 @@ struct NightAlarmView: View {
                     DayTimeEditorSheet(
                         weekday: weekday,
                         kind: .bedtime,
-                        accentColor: .indigo,
+                        accentColor: theme.nightAccent,
                         initialDate: editingDate
                     ) { selectedDate in
                         settingsStore.updateBedtime(for: weekday, date: selectedDate)
@@ -228,7 +243,7 @@ struct NightAlarmView: View {
                             .labelsHidden()
                     }
                     .padding()
-                    .background(Color(.systemGroupedBackground))
+                    .background(theme.surface2)
                     .cornerRadius(16)
                     .padding(.horizontal)
 
@@ -246,7 +261,7 @@ struct NightAlarmView: View {
                                 .padding(.vertical, 16)
                         }
                         .buttonStyle(.glass)
-                        .tint(.blue)
+                        .tint(theme.accent)
                         .padding(.horizontal, 24)
                         .padding(.bottom, 24)
                     } else {
@@ -256,7 +271,7 @@ struct NightAlarmView: View {
                         } label: {
                             Text("就寝アラームをセット")
                         }
-                        .buttonStyle(MaterialBounceButtonStyle(baseColor: .blue))
+                        .buttonStyle(MaterialBounceButtonStyle(baseColor: theme.accent, foregroundColor: theme.onAccent))
                         .padding(.horizontal, 24)
                         .padding(.bottom, 24)
                     }
@@ -264,6 +279,8 @@ struct NightAlarmView: View {
             }
             }
             .navigationTitle("Night")
+            .background(theme.background.ignoresSafeArea())
+            .themedNavigation(theme)
         }
     }
 
@@ -291,6 +308,7 @@ struct NightAlarmView: View {
 struct MorningAlarmView: View {
     @EnvironmentObject var scheduler: AlarmScheduler
     @EnvironmentObject var settingsStore: AlarmSettingsStore
+    @EnvironmentObject var themeStore: AppThemeStore
     @State private var alarmTime: Date = {
         let cal = Calendar.current
         return cal.date(bySettingHour: 7, minute: 0, second: 0, of: Date()) ?? Date()
@@ -300,6 +318,10 @@ struct MorningAlarmView: View {
 
     private var autoAlarmEnabled: Bool {
         settingsStore.settings.autoEnabled
+    }
+
+    private var theme: AppTheme {
+        themeStore.selectedTheme
     }
 
     var body: some View {
@@ -313,14 +335,14 @@ struct MorningAlarmView: View {
                         AutoAlarmSummaryCard(
                             title: "次回の起床アラーム",
                             value: settingsStore.nextAlarmSummary(for: .wake),
-                            accentColor: .orange,
+                            accentColor: theme.morningAccent,
                             systemImage: "sun.max.fill"
                         )
 
                         WeekdayScheduleGrid(
                             title: "曜日ごとの起床時刻",
                             kind: .wake,
-                            accentColor: .orange
+                            accentColor: theme.morningAccent
                         ) { weekday in
                             editingDay = weekday
                             editingDate = dateForTime(
@@ -330,7 +352,7 @@ struct MorningAlarmView: View {
                         }
 
                         TomorrowSkipSection(
-                            accentColor: .orange,
+                            accentColor: theme.morningAccent,
                             skipOverride: settingsStore.tomorrowSkipOverride(),
                             onToggleWake: {
                                 settingsStore.toggleTomorrowSkip(kind: .wake)
@@ -359,7 +381,7 @@ struct MorningAlarmView: View {
                     DayTimeEditorSheet(
                         weekday: weekday,
                         kind: .wake,
-                        accentColor: .orange,
+                        accentColor: theme.morningAccent,
                         initialDate: editingDate
                     ) { selectedDate in
                         settingsStore.updateWakeTime(for: weekday, date: selectedDate)
@@ -391,7 +413,7 @@ struct MorningAlarmView: View {
                             .labelsHidden()
                     }
                     .padding()
-                    .background(Color(.systemGroupedBackground))
+                    .background(theme.surface2)
                     .cornerRadius(16)
                     .padding(.horizontal)
 
@@ -409,7 +431,7 @@ struct MorningAlarmView: View {
                                 .padding(.vertical, 16)
                         }
                         .buttonStyle(.glass)
-                        .tint(.blue)
+                        .tint(theme.accent)
                         .padding(.horizontal, 24)
                         .padding(.bottom, 24)
                     } else {
@@ -419,7 +441,7 @@ struct MorningAlarmView: View {
                         } label: {
                             Text("起床アラームをセット")
                         }
-                        .buttonStyle(MaterialBounceButtonStyle(baseColor: .blue))
+                        .buttonStyle(MaterialBounceButtonStyle(baseColor: theme.accent, foregroundColor: theme.onAccent))
                         .padding(.horizontal, 24)
                         .padding(.bottom, 24)
                     }
@@ -427,6 +449,8 @@ struct MorningAlarmView: View {
             }
             }
             .navigationTitle("Morning")
+            .background(theme.background.ignoresSafeArea())
+            .themedNavigation(theme)
         }
     }
 
@@ -466,15 +490,25 @@ private func dateForTime(hour: Int, minute: Int) -> Date {
 }
 
 private func syncStatusRow() -> some View {
-    HStack(spacing: 10) {
-        ProgressView()
-        Text("Firebase に同期中...")
-            .foregroundColor(.secondary)
+    ThemedSyncStatusRow()
+}
+
+private struct ThemedSyncStatusRow: View {
+    @EnvironmentObject var themeStore: AppThemeStore
+
+    var body: some View {
+        let theme = themeStore.selectedTheme
+
+        HStack(spacing: 10) {
+            ProgressView()
+            Text("Firebase に同期中...")
+                .foregroundColor(theme.textDim)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(theme.surface2)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding()
-    .background(Color(.secondarySystemGroupedBackground))
-    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 }
 
 struct AutoAlarmSummaryCard: View {
@@ -482,12 +516,15 @@ struct AutoAlarmSummaryCard: View {
     let value: String
     let accentColor: Color
     let systemImage: String
+    @EnvironmentObject var themeStore: AppThemeStore
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+
         VStack(alignment: .leading, spacing: 10) {
             Label(title, systemImage: systemImage)
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.textDim)
 
             Text(value)
                 .font(.system(size: 28, weight: .bold, design: .rounded))
@@ -495,13 +532,14 @@ struct AutoAlarmSummaryCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
-        .background(accentColor.opacity(0.12))
+        .background(accentColor.opacity(0.14))
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
 struct WeekdayScheduleGrid: View {
     @EnvironmentObject var settingsStore: AlarmSettingsStore
+    @EnvironmentObject var themeStore: AppThemeStore
 
     let title: String
     let kind: ScheduledAlarmKind
@@ -514,9 +552,12 @@ struct WeekdayScheduleGrid: View {
     ]
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
                 .font(.headline)
+                .foregroundColor(theme.text)
 
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(WeekdayKey.allCases) { weekday in
@@ -526,15 +567,15 @@ struct WeekdayScheduleGrid: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("\(weekday.shortLabel)曜日")
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(theme.textDim)
 
                             Text(settingsStore.formattedTime(for: weekday, kind: kind))
                                 .font(.system(size: 24, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
+                                .foregroundColor(theme.text)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(16)
-                        .background(Color(.secondarySystemGroupedBackground))
+                        .background(theme.surface)
                         .overlay(
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
                                 .stroke(accentColor.opacity(0.25), lineWidth: 1)
@@ -550,6 +591,7 @@ struct WeekdayScheduleGrid: View {
 }
 
 struct TomorrowSkipSection: View {
+    @EnvironmentObject var themeStore: AppThemeStore
     let accentColor: Color
     let skipOverride: SkipOverride
     let onToggleWake: () -> Void
@@ -565,13 +607,16 @@ struct TomorrowSkipSection: View {
     }
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+
         VStack(alignment: .leading, spacing: 12) {
             Text("明日のスキップ")
                 .font(.headline)
+                .foregroundColor(theme.text)
 
             Text("\(tomorrowLabel) の起床・就寝だけを一時的に無効化できます")
                 .font(.footnote)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.textDim)
 
             HStack(spacing: 10) {
                 SkipToggleButton(
@@ -629,6 +674,7 @@ struct DayTimeEditorSheet: View {
     let onSave: (Date) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var themeStore: AppThemeStore
     @State private var selectedDate: Date
 
     init(
@@ -656,6 +702,8 @@ struct DayTimeEditorSheet: View {
     }
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+
         NavigationStack {
             VStack(spacing: 20) {
                 DatePicker("", selection: $selectedDate, displayedComponents: .hourAndMinute)
@@ -664,13 +712,15 @@ struct DayTimeEditorSheet: View {
 
                 Text("保存すると Firebase に同期されます")
                     .font(.footnote)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.textDim)
 
                 Spacer()
             }
             .padding()
+            .background(theme.background.ignoresSafeArea())
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
+            .themedNavigation(theme)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("キャンセル") {
@@ -716,6 +766,7 @@ struct VolumeGuideView: View {
 
 struct ArmedView: View {
     @EnvironmentObject var scheduler: AlarmScheduler
+    @EnvironmentObject var themeStore: AppThemeStore
 
     private var timeFormatter: DateFormatter {
         let f = DateFormatter()
@@ -724,26 +775,30 @@ struct ArmedView: View {
     }
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+
         VStack(spacing: 30) {
             Spacer()
 
             Image(systemName: "moon.fill")
                 .font(.system(size: 60))
-                .foregroundColor(.indigo)
+                .foregroundColor(theme.nightAccent)
 
             Text("アラームセット完了")
                 .font(.title2)
                 .fontWeight(.bold)
+                .foregroundColor(theme.text)
 
             if let session = scheduler.session {
                 VStack(spacing: 8) {
                     Text("アラーム開始: \(timeFormatter.string(from: session.alarmStartTime))")
                         .font(.title)
                         .fontWeight(.heavy)
+                        .foregroundColor(theme.text)
 
                     Text("「起きた」を押すまで1分おきに鳴り続けます")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.textDim)
                 }
             }
 
@@ -753,7 +808,7 @@ struct ArmedView: View {
 
             Text("iPhoneを充電器に繋いで\nおやすみなさい")
                 .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.textDim)
 
             // キャンセルボタン
             if #available(iOS 26.0, *) {
@@ -767,7 +822,7 @@ struct ArmedView: View {
                         .padding(.vertical, 16)
                 }
                 .buttonStyle(.glass)
-                .tint(.red)
+                .tint(theme.red)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             } else {
@@ -776,11 +831,12 @@ struct ArmedView: View {
                 } label: {
                     Text("キャンセル")
                 }
-                .buttonStyle(MaterialBounceButtonStyle(baseColor: .red))
+                .buttonStyle(MaterialBounceButtonStyle(baseColor: theme.red))
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }
         }
+        .background(theme.background.ignoresSafeArea())
     }
 }
 
@@ -788,6 +844,7 @@ struct ArmedView: View {
 
 struct NightArmedView: View {
     @EnvironmentObject var scheduler: AlarmScheduler
+    @EnvironmentObject var themeStore: AppThemeStore
 
     private var timeFormatter: DateFormatter {
         let f = DateFormatter()
@@ -796,20 +853,23 @@ struct NightArmedView: View {
     }
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+
         VStack(spacing: 30) {
             Spacer()
 
             Image(systemName: "moon.zzz.fill")
                 .font(.system(size: 60))
-                .foregroundColor(.indigo)
+                .foregroundColor(theme.nightAccent)
 
             Text("就寝アラームセット完了")
                 .font(.title2)
                 .fontWeight(.bold)
+                .foregroundColor(theme.text)
 
             Text("時間になったらお知らせします")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.textDim)
 
             VolumeGuideView()
 
@@ -817,7 +877,7 @@ struct NightArmedView: View {
 
             Text("そろそろ寝る準備を\nしておきましょう")
                 .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.textDim)
 
             if #available(iOS 26.0, *) {
                 Button {
@@ -830,7 +890,7 @@ struct NightArmedView: View {
                         .padding(.vertical, 16)
                 }
                 .buttonStyle(.glass)
-                .tint(.red)
+                .tint(theme.red)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             } else {
@@ -839,11 +899,12 @@ struct NightArmedView: View {
                 } label: {
                     Text("キャンセル")
                 }
-                .buttonStyle(MaterialBounceButtonStyle(baseColor: .red))
+                .buttonStyle(MaterialBounceButtonStyle(baseColor: theme.red))
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }
         }
+        .background(theme.background.ignoresSafeArea())
     }
 }
 
@@ -851,21 +912,25 @@ struct NightArmedView: View {
 
 struct NightSuccessView: View {
     @EnvironmentObject var scheduler: AlarmScheduler
+    @EnvironmentObject var themeStore: AppThemeStore
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+
         VStack(spacing: 30) {
             Spacer()
 
             Image(systemName: "moon.stars.fill")
                 .font(.system(size: 80))
-                .foregroundColor(.indigo)
+                .foregroundColor(theme.nightAccent)
 
             Text("おやすみなさい")
                 .font(.system(size: 36, weight: .black, design: .rounded))
+                .foregroundColor(theme.text)
 
             Text("ぐっすり眠ってください")
                 .font(.title3)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.textDim)
 
             Spacer()
 
@@ -880,7 +945,7 @@ struct NightSuccessView: View {
                         .padding(.vertical, 16)
                 }
                 .buttonStyle(.glass)
-                .tint(.indigo)
+                .tint(theme.nightAccent)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             } else {
@@ -889,11 +954,12 @@ struct NightSuccessView: View {
                 } label: {
                     Text("閉じる")
                 }
-                .buttonStyle(MaterialBounceButtonStyle(baseColor: .indigo))
+                .buttonStyle(MaterialBounceButtonStyle(baseColor: theme.nightAccent, foregroundColor: theme.onAccent))
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }
         }
+        .background(theme.background.ignoresSafeArea())
         .onAppear {
             scheduler.brightnessManager.restoreBrightness()
         }
@@ -905,4 +971,5 @@ struct NightSuccessView: View {
         .environmentObject(AlarmScheduler())
         .environmentObject(SleepHistoryManager())
         .environmentObject(AlarmSettingsStore())
+        .environmentObject(AppThemeStore())
 }

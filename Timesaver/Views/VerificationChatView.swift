@@ -15,6 +15,7 @@ struct ChatMessage: Identifiable {
 struct VerificationChatView: View {
     let mode: GeminiService.VerificationMode
     @EnvironmentObject var scheduler: AlarmScheduler
+    @EnvironmentObject var themeStore: AppThemeStore
     @State private var messages: [ChatMessage] = []
     @State private var inputText = ""
     @State private var selectedPhoto: PhotosPickerItem?
@@ -22,6 +23,10 @@ struct VerificationChatView: View {
     @State private var isLoading = false
     @State private var isFocused = false
     @FocusState private var textFieldFocused: Bool
+
+    private var theme: AppTheme {
+        themeStore.selectedTheme
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -100,7 +105,7 @@ struct VerificationChatView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
-                    .background(Color.orange)
+                    .background(theme.morningAccent)
                     .foregroundColor(.white)
                     .cornerRadius(12)
                     .padding(.horizontal, 16)
@@ -120,6 +125,7 @@ struct VerificationChatView: View {
             )
             messages.append(greeting)
         }
+        .background(theme.background.ignoresSafeArea())
     }
 
     // MARK: - ヘッダー
@@ -127,9 +133,10 @@ struct VerificationChatView: View {
     private var headerView: some View {
         HStack {
             Image(systemName: mode == .night ? "moon.fill" : "sun.max.fill")
-                .foregroundColor(mode == .night ? .indigo : .orange)
+                .foregroundColor(mode == .night ? theme.nightAccent : theme.morningAccent)
             Text(GeminiService.headerTitle(for: mode))
                 .font(.headline)
+                .foregroundColor(theme.text)
             Spacer()
 
             // デバッグモード時のみ停止ボタンを表示
@@ -144,7 +151,7 @@ struct VerificationChatView: View {
                             .fontWeight(.bold)
                     }
                     .buttonStyle(.glass)
-                    .tint(.red)
+                    .tint(theme.red)
                 } else {
                     Button {
                         scheduler.soundManager.stopVibration()
@@ -155,7 +162,7 @@ struct VerificationChatView: View {
                             .fontWeight(.bold)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
-                            .background(Color.red.opacity(0.8))
+                            .background(theme.red.opacity(0.8))
                             .foregroundColor(.white)
                             .clipShape(Capsule())
                     }
@@ -163,7 +170,7 @@ struct VerificationChatView: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(theme.surface.opacity(0.94))
     }
 
     // MARK: - 入力バー
@@ -174,9 +181,9 @@ struct VerificationChatView: View {
             PhotosPicker(selection: $selectedPhoto, matching: .images) {
                 Image(systemName: "plus")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.primary)
+                    .foregroundColor(theme.text)
                     .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial)
+                    .background(theme.surface2)
                     .clipShape(Circle())
             }
             .onChange(of: selectedPhoto) {
@@ -199,24 +206,24 @@ struct VerificationChatView: View {
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.system(size: 28))
-                        .foregroundColor(canSend ? .purple : .gray.opacity(0.4))
+                        .foregroundColor(canSend ? theme.accent : theme.textDim.opacity(0.45))
                 }
                 .disabled(!canSend || isLoading)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
+            .background(theme.surface2)
             .clipShape(Capsule())
             .overlay(
                 Capsule()
-                    .stroke(isFocused ? Color.purple.opacity(0.6) : Color.clear, lineWidth: 1.5)
+                    .stroke(isFocused ? theme.accent.opacity(0.6) : Color.clear, lineWidth: 1.5)
             )
-            .shadow(color: isFocused ? .purple.opacity(0.2) : .clear, radius: 8)
+            .shadow(color: isFocused ? theme.accent.opacity(0.2) : .clear, radius: 8)
             .animation(.easeInOut(duration: 0.2), value: isFocused)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .background(theme.surface.opacity(0.94))
     }
 
     // MARK: - ロジック
@@ -305,8 +312,11 @@ struct VerificationChatView: View {
 
 struct ChatBubble: View {
     let message: ChatMessage
+    @EnvironmentObject var themeStore: AppThemeStore
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+
         HStack {
             if message.isUser { Spacer() }
 
@@ -326,8 +336,8 @@ struct ChatBubble: View {
                         .font(.body)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(message.isUser ? Color.purple : Color(.systemGray5))
-                        .foregroundColor(message.isUser ? .white : .primary)
+                        .background(message.isUser ? theme.accent : theme.surface2)
+                        .foregroundColor(message.isUser ? theme.onAccent : theme.text)
                         .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
             }
@@ -342,20 +352,23 @@ struct ChatBubble: View {
 // MARK: - タイピングインジケーター
 
 struct TypingIndicator: View {
+    @EnvironmentObject var themeStore: AppThemeStore
     @State private var dotCount = 0
 
     var body: some View {
+        let theme = themeStore.selectedTheme
+
         HStack(spacing: 4) {
             ForEach(0..<3, id: \.self) { i in
                 Circle()
-                    .fill(Color.gray)
+                    .fill(theme.textDim)
                     .frame(width: 8, height: 8)
                     .opacity(dotCount == i ? 1.0 : 0.3)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(Color(.systemGray5))
+        .background(theme.surface2)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .onAppear {
             Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
@@ -368,4 +381,5 @@ struct TypingIndicator: View {
 #Preview {
     VerificationChatView(mode: .morning)
         .environmentObject(AlarmScheduler())
+        .environmentObject(AppThemeStore())
 }

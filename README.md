@@ -1,5 +1,5 @@
 # Timesaver (Infinite Wake) *
-
+Screenshot: 2026-04-25 16:01:25
 # English Version
 
 An alarm app that physically and psychologically defeats oversleeping. Alarms fire every minute **with no limit** until you press "Woke up", then vibration continues until Gemini AI confirms you're standing at your washstand.
@@ -12,7 +12,7 @@ Since the app works by playing silent audio files while you sleep, it's highly u
 ### Morning — Wake-up Alarm
 - Set your alarm time — **no alarm count setting**; alarms fire every 1 minute indefinitely until you tap "Woke up"
 - While sleeping, `silence.wav` plays silently on loop (starts immediately after setting alarm) to keep the app alive in the background — phone can be locked right away
-- When alarm time arrives, the in-app Timer auto-switches from silence to alarm sound; Now Playing on the lock screen shows "Tap here to open app" so the user can return to the app
+- When alarm time arrives, the `silence.wav` loop callback auto-switches from silence to alarm sound; Now Playing on the lock screen shows "Tap here to open app" so the user can return to the app
 - Tap "Woke up" → alarm sound stops → **vibration starts** (cannot be stopped manually)
 - Take a photo of yourself at your washstand and send it to Gemini AI
   - Your home washstand reference photo is pre-registered in the app (gitignored)
@@ -29,6 +29,9 @@ Since the app works by playing silent audio files while you sleep, it's highly u
 - **Chat-based verification UI**: ChatGPT-style interface for AI photo verification
 - **Sleep history**: Records each action's timestamp (alarm set → alarm fired → button tap → mission complete) with reaction time, mission time, and total time
 - **Firebase Firestore sync**: Records are saved to Firestore on mission completion and fetched on app launch (shared with web dashboard). *Note: Firebase Storage is not yet configured, so photo data is not being uploaded.*
+- **Web dashboard charts**: History includes weekly/monthly mission-completion time charts for Morning, Night, or both.
+- **Color themes**: iOS and Web support Purple (default), White, Black, and Tokyo Night themes.
+- **Web settings UI**: Web has a sidebar with SVG logo, theme settings, Firestore alarm settings, and manual-mode auto-set wake toggle.
 - **API key via Secrets.plist**: Gemini API key is bundled at build time (no in-app settings UI)
 - **Screen brightness control**: Maximizes brightness when alarm fires
 - **Backup notifications**: Critical alerts even when the app is in the background
@@ -38,7 +41,7 @@ Since the app works by playing silent audio files while you sleep, it's highly u
 
 ```
 Set alarm → silence.wav loop starts immediately → sleep (phone can be locked)
-  → in-app Timer detects alarm time → auto-switch from silence to alarm sound
+  → silence.wav loop callback detects alarm time → auto-switch from silence to alarm sound
   → alarm fires every 1 min (infinite loop)
   → Now Playing shows "Tap here to open app" on lock screen
   → user taps Now Playing → returns to app
@@ -50,8 +53,10 @@ Set alarm → silence.wav loop starts immediately → sleep (phone can be locked
 
 ## Setup
 1. Create `Timesaver/Secrets.plist` with your Gemini API key as `GEMINI_API_KEY` (bundled into the app at build time — no in-app key entry)
-2. Add your home washstand photo to `Assets.xcassets` as `reference_washstand` and your bedtime photo as `reference_bedtime` (these files are gitignored)
-3. Build on a real device with Xcode (iOS 17.0+)
+2. Add `Timesaver/GoogleService-Info.plist` for Firebase (gitignored)
+3. Add your home washstand photo to `Assets.xcassets` as `reference_washstand` and your bedtime photo as `reference_bedtime` (these files are gitignored)
+4. For the Flask dashboard, set `FIREBASE_SERVICE_ACCOUNT` in `web/.env` or provide the ignored Firebase Admin SDK JSON under `web/`
+5. Build on a real device with Xcode (iOS 17.0+)
 
 ## Architecture Change Log
 
@@ -98,7 +103,7 @@ The AI verification prompt has been enhanced to prioritize **face matching** (us
 Firestore `app_settings/alarm_settings` expanded from a single time to a `weekly_schedule` + `skip_overrides` structure. The Settings tab now only toggles auto mode; Morning / Night tabs host per-weekday time editing, next-alarm preview, and "skip tomorrow" toggles (morning / night / both). `AlarmScheduler` resolves the next wake alarm from the weekly schedule after a successful bedtime mission. The web dashboard shares the same schema.
 
 #### Added: Offline fallback via shake (`ShakeMissionView.swift`)
-If Gemini API is unreachable, the user is routed to a shake mission that requires 100 vigorous shakes (accelerometer magnitude > 2.5) to stop the alarm. Works for both morning and night flows.
+If Gemini API is unreachable, the user is routed to a shake mission that requires 200 vigorous shakes (accelerometer magnitude > 2.5) to stop the alarm. Works for both morning and night flows.
 
 #### Added: Alarm sound test button (debug)
 Settings screen includes a "Test alarm sound" button that fires the wake alarm 10 seconds later, letting users verify real-device volume, notifications, and background behavior. Uses `NotificationCenter` to pass the scheduled date from `AlarmSettingsStore` to `AlarmScheduler`.
@@ -130,13 +135,24 @@ Images sent to the Gemini API are resized to Full HD before upload, cutting toke
 Debug sessions can now be exited from the chat screen. "Woke up" button was restyled (red text on a blue button). A volume guide image is shown on the armed and settings screens.
 
 #### Added: Offline debug mode (`AlarmScheduler.startOfflineDebugMission()`)
-Settings screen gains a second debug button below "Test alarm sound" that jumps directly into the shake fallback mission — skipping alarm firing and Gemini verification. Purpose: verify that the 100-shake rescue flow behaves correctly under genuine offline conditions.
+Settings screen gains a second debug button below "Test alarm sound" that jumps directly into the shake fallback mission — skipping alarm firing and Gemini verification. Purpose: verify that the 200-shake rescue flow behaves correctly under genuine offline conditions.
+
+### 2026-05-04
+
+#### Added: Color theme system for iOS and Web
+Added `AppTheme` / `AppThemeStore` on iOS and shared theme CSS variables on Web. Users can choose Purple, White, Black, or Tokyo Night, and the selected theme is persisted locally.
+
+#### Added: Web history charts and safer settings sync
+The Web History page now shows weekly/monthly mission-completion time charts based on `alarmFiredTime` → `missionCompletedTime`. Web settings now preserves `auto_set_wake_alarm_after_bedtime` so saving from Web does not remove the iOS manual-mode auto-set flag.
+
+#### Updated: Settings layout, branding, and app icon
+The iOS Settings screen now uses custom theme-aware panels with a top Display section and a pinned Time Settings header. The Web sidebar uses `Infinite-Wake-logo.svg` as a clickable Dashboard link, with Dashboard / History / Settings / 時間設定 navigation. The iOS AppIcon now uses a 1024px PNG derived from the Infinite Wake SVG logo.
 
 ## Stack
-- Platform: iOS (iPhone)
-- Framework: SwiftUI
-- Language: Swift 5
-- Min iOS: 17.0
+- Platform: iOS (iPhone) + Web dashboard
+- iOS: SwiftUI / Swift 5 / iOS 17.0+
+- Web: Flask / Firebase Admin SDK
+- Database: Firebase Firestore
 - AI: Gemini 2.0 Flash (photo verification)
 # Japanese version
 
@@ -150,7 +166,7 @@ Settings screen gains a second debug button below "Test alarm sound" that jumps 
 ### 朝 — 起床アラーム
 - アラーム時刻の設定 — **回数設定はありません**。「起きた」をタップするまで、1分おきに無期限で鳴り続けます。
 - アラームセット直後に `silence.wav` の無音ループ再生が開始され、バックグラウンドでのアプリ生存を維持します。セット後すぐにiPhoneをロック（スリープ）して就寝可能。
-- 設定時刻になるとアプリ内タイマーが自動検知し、無音ループから有音アラームに切替。ロック画面のNow Playingエリアに「ここをタップしてアプリを開く」と表示され、タップでアプリに復帰。
+- 設定時刻になると `silence.wav` のループ完了コールバックが自動検知し、無音ループから有音アラームに切替。ロック画面のNow Playingエリアに「ここをタップしてアプリを開く」と表示され、タップでアプリに復帰。
 - 「起きた」をタップ → アラーム音が停止 → **バイブレーション開始**（手動では停止不可）
 - 洗面所で自分の写真を撮り、Gemini AIに送信
   - 自宅の洗面所の参照写真はアプリ内に事前登録（gitignored）
@@ -167,6 +183,9 @@ Settings screen gains a second debug button below "Test alarm sound" that jumps 
 - **チャット形式の検証UI**: AIによる写真検証のためのChatGPT風インターフェース
 - **睡眠履歴**: 各アクションのタイムスタンプ（アラーム設定 → 鳴動 → ボタンタップ → ミッション完了）を記録。反応時間、ミッション時間、合計時間を算出。
 - **Firebase Firestore 同期**: ミッション完了時にFirestoreへ記録を保存し、アプリ起動時に取得（Webダッシュボードと共有）。※Firebase Storageは未設定のため、写真データ自体はアップロードされません。
+- **Web履歴グラフ**: History画面で、起床・就寝・両方のミッション完了時間を Weekly / Monthly で可視化。
+- **カラーテーマ**: iOS版とWeb版で「紫(デフォルト)」「白」「黒」「Tokyo Night」を選択可能。
+- **Web設定UI**: SVGロゴ付きサイドバー、テーマ設定、Firestoreの時間設定、手動モード用の起床自動セット切替を提供。
 - **Secrets.plistによるAPIキー管理**: Gemini APIキーはビルド時にバンドル（アプリ内設定UIなし）
 - **画面輝度制御**: アラーム鳴動時に輝度を最大化
 - **バックアップ通知**: アラーム時にクリティカルアラートを通知
@@ -175,7 +194,7 @@ Settings screen gains a second debug button below "Test alarm sound" that jumps 
 
 ```
 アラーム設定 → 無音ループ即開始 → スリープ可能（iPhoneロックOK）
-  → アプリ内タイマーが設定時刻を自動検知 → 無音→有音アラームに切替
+  → silence.wav のループ完了コールバックが設定時刻を自動検知 → 無音→有音アラームに切替
   → 1分おきにアラーム鳴動（無限ループ）
   → ロック画面のNow Playing「ここをタップしてアプリを開く」をタップ → アプリに復帰
   → 「起きた」タップ → 音停止、バイブ開始
@@ -186,8 +205,10 @@ Settings screen gains a second debug button below "Test alarm sound" that jumps 
 
 ## セットアップ
 1. `Timesaver/Secrets.plist` を作成し、Gemini APIキーを `GEMINI_API_KEY` として追加（ビルド時にバンドルされます）
-2. `Assets.xcassets` に自宅の洗面所写真を `reference_washstand` として、就寝時の写真を `reference_bedtime` として追加してください（これらのファイルは gitignore されています）
-3. Xcodeで実機（iOS 17.0+）にビルド
+2. Firebase用の `Timesaver/GoogleService-Info.plist` を追加（gitignore対象）
+3. `Assets.xcassets` に自宅の洗面所写真を `reference_washstand` として、就寝時の写真を `reference_bedtime` として追加してください（これらのファイルは gitignore されています）
+4. Flask版ダッシュボードは `web/.env` の `FIREBASE_SERVICE_ACCOUNT` または `web/` 配下のgit管理外Firebase Admin SDK JSONで認証
+5. Xcodeで実機（iOS 17.0+）にビルド
 
 ## アーキテクチャ変更ログ
 
@@ -234,7 +255,7 @@ AI検証プロンプトを刷新。服装（パジャマ）や寝具（シーツ
 Firestore の `app_settings/alarm_settings` を単一時刻保存から `weekly_schedule` + `skip_overrides` 形式に拡張。Settings タブは自動モード切替のみに簡素化し、曜日ごとの時刻編集・次回アラーム表示・「明朝 / 明夜 / 両方スキップ」操作は Morning / Night タブ側に再編成。`AlarmScheduler` は就寝成功後の起床アラームを曜日設定ベースで解決。Webダッシュボードも同じ Firestore スキーマを共有。
 
 #### 追加: オフライン救済ミッション（シェイク） (`ShakeMissionView.swift`)
-Gemini API が利用できない場合、加速度センサーで100回のシェイク（magnitude > 2.5）を検出する救済ミッションに遷移。起床・就寝の両フローに対応。
+Gemini API が利用できない場合、加速度センサーで200回のシェイク（magnitude > 2.5）を検出する救済ミッションに遷移。起床・就寝の両フローに対応。
 
 #### 追加: アラーム音試用ボタン（デバッグ）
 設定画面に「アラーム音を試用」ボタンを追加。10秒後に起床アラームが発動し、実機での音量・通知・バックグラウンド動作を検証可能。`NotificationCenter` 経由で `AlarmSettingsStore` から `AlarmScheduler` にスケジュール命令を渡す設計。
@@ -266,11 +287,22 @@ Gemini API に送信する画像を事前に Full HD へ縮小することで、
 デバッグセッションはチャット画面から離脱可能に。「Woke up」ボタンは赤文字＋青ボタンのデザインへ変更。待機画面・設定画面に音量ガイド画像を追加。
 
 #### 追加: オフラインデバッグモード (`AlarmScheduler.startOfflineDebugMission()`)
-設定画面の「アラーム音を試用」の下に、シェイク救済ミッションへ直接遷移するデバッグボタンを追加。アラーム発動・Gemini認証を飛ばして、シェイク100回タスクがオフライン状況下で正しく動作するかを単独で検証するための機能。
+設定画面の「アラーム音を試用」の下に、シェイク救済ミッションへ直接遷移するデバッグボタンを追加。アラーム発動・Gemini認証を飛ばして、シェイク200回タスクがオフライン状況下で正しく動作するかを単独で検証するための機能。
+
+### 2026-05-04
+
+#### 追加: iOS / Web 共通のカラーテーマ
+iOS側に `AppTheme` / `AppThemeStore` を追加し、Web側はCSS変数でテーマ化。「紫(デフォルト)」「白」「黒」「Tokyo Night」を選択でき、選択内容はローカルに保存されます。
+
+#### 追加: Web履歴グラフと設定同期の保護
+Web版Historyに `alarmFiredTime` → `missionCompletedTime` の所要時間を Weekly / Monthly で表示するグラフを追加。Web版設定保存時に `auto_set_wake_alarm_after_bedtime` が消えないよう、iOS共有キーを保持するように修正。
+
+#### 更新: 設定画面レイアウト、ロゴ、アプリアイコン
+iOS版Settingsはテーマ対応カードUIに整理し、上部に「表示」、その下に固定ヘッダー付きの「時間設定」を配置。Web版サイドバーは `Infinite-Wake-logo.svg` をロゴとして表示し、クリックでDashboardへ戻る構成に変更。iOS AppIcon は Infinite Wake SVGロゴ由来の1024px PNGを使用。
 
 ## スタック
-- プラットフォーム: iOS (iPhone)
-- フレームワーク: SwiftUI
-- 言語: Swift 5
-- 最小OS: iOS 17.0
+- プラットフォーム: iOS (iPhone) + Web dashboard
+- iOS: SwiftUI / Swift 5 / iOS 17.0+
+- Web: Flask / Firebase Admin SDK
+- データベース: Firebase Firestore
 - AI: Gemini 2.0 Flash (写真検証)
