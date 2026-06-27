@@ -1,5 +1,5 @@
 # Timesaver (Infinite Wake) *
-<img width="800" height="1612" alt="image" src="https://github.com/user-attachments/assets/77434d9a-e653-4858-9f38-6ad57389555c" />
+<img width="160" height="322.4" alt="image" src="https://github.com/user-attachments/assets/77434d9a-e653-4858-9f38-6ad57389555c" />
 
 # English Version
 
