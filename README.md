@@ -1,5 +1,6 @@
 # Timesaver (Infinite Wake) *
-Screenshot: 2026-04-25 16:01:25
+<img width="800" height="1612" alt="image" src="https://github.com/user-attachments/assets/77434d9a-e653-4858-9f38-6ad57389555c" />
+
 # English Version
 
 An alarm app that physically and psychologically defeats oversleeping. Alarms fire every minute **with no limit** until you press "Woke up", then vibration continues until Gemini AI confirms you're standing at your washstand.
